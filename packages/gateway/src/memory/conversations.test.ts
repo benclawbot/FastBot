@@ -72,11 +72,14 @@ describe("ConversationStore", () => {
     expect(usage).toBeGreaterThan(0);
   });
 
-  it("prunes old messages", () => {
+  it("prunes old messages", async () => {
     store.append("s1", "u1", "user", "Old message");
 
-    // Prune anything older than 0ms (everything)
-    const pruned = store.prune(0);
+    // Small delay so the message timestamp is in the past
+    await new Promise((r) => setTimeout(r, 15));
+
+    // Prune anything older than 1ms (should catch the message)
+    const pruned = store.prune(1);
     expect(pruned).toBe(1);
     expect(store.count()).toBe(0);
   });
