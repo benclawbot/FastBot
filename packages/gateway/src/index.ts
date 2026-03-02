@@ -184,7 +184,7 @@ async function main() {
       (data: { section: string; data: Record<string, unknown> }) => {
         log.info({ section: data.section }, "Settings update requested");
         audit.log({
-          event: "config.updated",
+          event: "config.changed",
           actor: socket.id,
           detail: `Settings section "${data.section}" updated via dashboard`,
         });
@@ -210,7 +210,7 @@ async function main() {
     socket.on("sessions:clear-all", () => {
       log.warn({ socketId: socket.id }, "Clearing all sessions");
       audit.log({
-        event: "session.expired",
+        event: "session.reaped",
         actor: socket.id,
         detail: "All sessions cleared via dashboard",
       });

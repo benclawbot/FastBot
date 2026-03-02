@@ -66,7 +66,7 @@ export class SecurityGuard {
   checkPath(filePath: string, actor: string): SecurityCheckResult {
     if (!isPathSafe(filePath, this.config.shellAllowedPaths)) {
       this.audit.log({
-        event: "security.path_blocked",
+        event: "security.path_traversal",
         actor,
         detail: `Blocked path traversal to ${filePath}`,
       });

@@ -18,7 +18,9 @@ export type AuditEvent =
   | "agent.completed"
   | "agent.failed"
   | "session.created"
-  | "session.reaped";
+  | "session.reaped"
+  | "config.changed"
+  | "config.updated";
 
 export interface AuditEntry {
   event: AuditEvent;

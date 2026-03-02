@@ -71,8 +71,8 @@ export class LlmRouter {
         this.usage.record(
           provider.provider,
           provider.model,
-          result.usage?.promptTokens ?? 0,
-          result.usage?.completionTokens ?? 0,
+          (result.usage as any)?.inputTokens ?? 0,
+          (result.usage as any)?.outputTokens ?? 0,
           sessionId
         );
 
@@ -80,8 +80,8 @@ export class LlmRouter {
           {
             provider: provider.provider,
             model: provider.model,
-            tokensIn: result.usage?.promptTokens,
-            tokensOut: result.usage?.completionTokens,
+            tokensIn: (result.usage as any)?.inputTokens ?? 0,
+            tokensOut: (result.usage as any)?.outputTokens ?? 0,
           },
           "LLM response generated"
         );
@@ -133,8 +133,8 @@ export class LlmRouter {
     this.usage.record(
       provider.provider,
       provider.model,
-      finalResult.usage?.promptTokens ?? totalIn,
-      finalResult.usage?.completionTokens ?? totalOut,
+      (finalResult.usage as any)?.inputTokens ?? totalIn,
+      (finalResult.usage as any)?.outputTokens ?? totalOut,
       sessionId
     );
   }
