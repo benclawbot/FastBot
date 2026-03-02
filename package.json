@@ -1,0 +1,20 @@
+{
+  "name": "secureclaudebot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ultra-secure personal AI gateway — Telegram + Mission Control dashboard",
+  "scripts": {
+    "dev": "pnpm -r --parallel run dev",
+    "build": "pnpm -r run build",
+    "lint": "pnpm -r run lint",
+    "doctor": "pnpm --filter @scb/gateway run doctor"
+  },
+  "packageManager": "pnpm@10.30.3",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild",
+      "sharp"
+    ]
+  }
+}
