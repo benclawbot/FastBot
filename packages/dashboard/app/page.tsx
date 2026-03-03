@@ -2,6 +2,7 @@
 
 import { useStatus } from "@/lib/hooks";
 import Link from "next/link";
+import { MessageCircle, Activity, Settings, Cpu, Clock, HardDrive } from "lucide-react";
 
 export default function Home() {
   const { status, connected } = useStatus();
@@ -9,146 +10,101 @@ export default function Home() {
   const formatUptime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
-    const s = Math.floor(seconds % 60);
-    return `${h}h ${m}m ${s}s`;
+    return `${h}h ${m}m`;
   };
 
+  const stats = [
+    { label: "Status", value: connected ? "Online" : "Offline", icon: Activity, color: connected ? "emerald" : "red" },
+    { label: "Sessions", value: String(status?.sessions ?? 0), icon: Cpu, color: "blue" },
+    { label: "Uptime", value: status ? formatUptime(status.uptime) : "--", icon: Clock, color: "violet" },
+    { label: "Memory", value: status ? `${status.memoryMB} MB` : "--", icon: HardDrive, color: "amber" },
+  ];
+
+  const subsystems = status?.subsystems ? Object.entries(status.subsystems) : [];
+
   return (
-    <div className="p-6">
-      <div className="max-w-5xl mx-auto">
-        <h2 className="text-2xl font-bold mb-6">Dashboard Overview</h2>
+    <div className="p-8 lg:p-12 max-w-6xl mx-auto">
+      {/* Header */}
+      <header className="mb-12">
+        <h1 className="text-3xl font-light tracking-tight mb-2">Dashboard</h1>
+        <p className="text-white/40">SecureClaudebot overview</p>
+      </header>
 
-        {/* Status Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <StatusCard
-            title="Gateway"
-            value={connected ? "Online" : "Offline"}
-            color={connected ? "emerald" : "red"}
-          />
-          <StatusCard
-            title="Sessions"
-            value={String(status?.sessions ?? 0)}
-            color="blue"
-          />
-          <StatusCard
-            title="Uptime"
-            value={status ? formatUptime(status.uptime) : "--"}
-            color="violet"
-          />
-          <StatusCard
-            title="Memory"
-            value={status ? `${status.memoryMB} MB` : "--"}
-            color="amber"
-          />
-        </div>
-
-        {/* Subsystem Status */}
-        <div className="bg-zinc-900 rounded-lg border border-zinc-800 p-6 mb-6">
-          <h3 className="text-lg font-semibold mb-4">Subsystems</h3>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {status?.subsystems
-              ? Object.entries(status.subsystems).map(([name, state]) => (
-                  <div
-                    key={name}
-                    className="flex items-center gap-2 bg-zinc-800/50 rounded-md px-3 py-2"
-                  >
-                    <div
-                      className={`w-2 h-2 rounded-full ${
-                        state === "online" || state === "connected"
-                          ? "bg-emerald-400"
-                          : state === "pending"
-                            ? "bg-yellow-400"
-                            : "bg-zinc-600"
-                      }`}
-                    />
-                    <span className="text-sm capitalize text-zinc-300">
-                      {name}
-                    </span>
-                    <span className="text-xs text-zinc-500 ml-auto capitalize">
-                      {state}
-                    </span>
-                  </div>
-                ))
-              : Array.from({ length: 4 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="bg-zinc-800/50 rounded-md px-3 py-2 animate-pulse h-10"
-                  />
-                ))}
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-12">
+        {stats.map(({ label, value, icon: Icon, color }) => (
+          <div
+            key={label}
+            className="group bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] hover:border-white/[0.12] rounded-2xl p-5 transition-all duration-300"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-xs text-white/40 uppercase tracking-wider">{label}</span>
+              <Icon size={16} className={`text-white/20 group-hover:text-${color}-400 transition-colors`} style={{ color: color === 'emerald' ? '#34d399' : color === 'red' ? '#f87171' : color === 'blue' ? '#60a5fa' : color === 'violet' ? '#a78bfa' : '#fbbf24' }} />
+            </div>
+            <p className="text-2xl font-light">{value}</p>
           </div>
-        </div>
-
-        {/* Quick Links */}
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-          <QuickLink
-            href="/chat"
-            title="Open Chat"
-            description="Claude Code-style streaming conversation"
-          />
-          <QuickLink
-            href="/status"
-            title="System Status"
-            description="Health checks and security events"
-          />
-          <QuickLink
-            href="/settings"
-            title="Settings"
-            description="Configure API keys, LLM, and security"
-          />
-        </div>
+        ))}
       </div>
+
+      {/* Subsystems */}
+      <section className="mb-12">
+        <h2 className="text-sm text-white/40 uppercase tracking-wider mb-4">Subsystems</h2>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+          {subsystems.length > 0
+            ? subsystems.map(([name, state]) => (
+                <div
+                  key={name}
+                  className="bg-white/[0.02] border border-white/[0.04] rounded-xl px-4 py-3 flex items-center gap-3"
+                >
+                  <div
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      state === "online" || state === "connected"
+                        ? "bg-emerald-400 shadow-lg shadow-emerald-400/50"
+                        : state === "pending"
+                          ? "bg-amber-400"
+                          : "bg-white/20"
+                    }`}
+                  />
+                  <span className="text-sm text-white/60 capitalize">{name}</span>
+                </div>
+              ))
+            : Array.from({ length: 4 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="bg-white/[0.02] border border-white/[0.04] rounded-xl px-4 py-3 animate-pulse"
+                >
+                  <div className="h-3 w-20 bg-white/10 rounded" />
+                </div>
+              ))}
+        </div>
+      </section>
+
+      {/* Quick Links */}
+      <section>
+        <h2 className="text-sm text-white/40 uppercase tracking-wider mb-4">Quick Access</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          <QuickLink href="/chat" icon={MessageCircle} title="Chat" description="Start a conversation" />
+          <QuickLink href="/status" icon={Activity} title="Status" description="System health & events" />
+          <QuickLink href="/settings" icon={Settings} title="Settings" description="Configure your bot" />
+        </div>
+      </section>
     </div>
   );
 }
 
-function StatusCard({
-  title,
-  value,
-  color,
-}: {
-  title: string;
-  value: string;
-  color: string;
-}) {
-  const colors: Record<string, string> = {
-    emerald: "text-emerald-400 border-emerald-400/20",
-    blue: "text-blue-400 border-blue-400/20",
-    yellow: "text-yellow-400 border-yellow-400/20",
-    red: "text-red-400 border-red-400/20",
-    violet: "text-violet-400 border-violet-400/20",
-    amber: "text-amber-400 border-amber-400/20",
-  };
-
-  const cls = colors[color] ?? "text-zinc-400 border-zinc-800";
-
-  return (
-    <div className={`bg-zinc-900 rounded-lg border p-4 ${cls}`}>
-      <p className="text-xs text-zinc-500 uppercase tracking-wider">{title}</p>
-      <p className={`text-xl font-mono font-bold mt-1 ${cls.split(" ")[0]}`}>
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function QuickLink({
-  href,
-  title,
-  description,
-}: {
-  href: string;
-  title: string;
-  description: string;
-}) {
+function QuickLink({ href, icon: Icon, title, description }: { href: string; icon: any; title: string; description: string }) {
   return (
     <Link
       href={href}
-      className="bg-zinc-900 rounded-lg border border-zinc-800 p-4 hover:border-zinc-700 hover:bg-zinc-800/50 transition-colors group"
+      className="group bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] hover:border-white/[0.12] rounded-2xl p-6 transition-all duration-300"
     >
-      <h4 className="text-sm font-semibold text-zinc-200 group-hover:text-emerald-400 transition-colors">
-        {title}
-      </h4>
-      <p className="text-xs text-zinc-500 mt-1">{description}</p>
+      <div className="flex items-center gap-4 mb-3">
+        <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors">
+          <Icon size={20} className="text-white/60 group-hover:text-emerald-400 transition-colors" />
+        </div>
+        <h3 className="text-lg font-light">{title}</h3>
+      </div>
+      <p className="text-sm text-white/40">{description}</p>
     </Link>
   );
 }

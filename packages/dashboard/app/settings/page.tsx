@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useSocket } from "@/lib/socket";
+import { Bot, Lock, Shield, Trash2, Check } from "lucide-react";
 
 interface LlmSettings {
   provider: string;
@@ -93,80 +94,80 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="p-6">
-      <div className="max-w-3xl mx-auto">
-        <h2 className="text-2xl font-bold mb-6">Settings</h2>
+    <div className="p-8 lg:p-12 max-w-3xl mx-auto">
+      <header className="mb-12">
+        <h1 className="text-3xl font-light tracking-tight mb-2">Settings</h1>
+        <p className="text-white/40">Configure your SecureClaudebot</p>
+      </header>
 
+      <div className="space-y-6">
         {/* LLM Configuration */}
-        <section className="bg-zinc-900 rounded-lg border border-zinc-800 p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">LLM Provider</h3>
+        <section className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                <Bot size={20} className="text-emerald-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-light">LLM Provider</h3>
+                <p className="text-xs text-white/40">Configure AI model settings</p>
+              </div>
+            </div>
             {savedSection === "llm" && (
-              <span className="text-xs text-emerald-400">Saved!</span>
+              <span className="flex items-center gap-1 text-xs text-emerald-400">
+                <Check size={14} /> Saved
+              </span>
             )}
           </div>
           <form onSubmit={handleSaveLlm} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs text-zinc-400 mb-1.5">
-                  Provider
-                </label>
+                <label className="block text-xs text-white/40 mb-2">Provider</label>
                 <input
                   type="text"
                   value={llm.provider}
                   onChange={(e) => setLlm({ ...llm, provider: e.target.value })}
                   placeholder="anthropic, openai, google, ollama"
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-emerald-500/50"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-emerald-500/50 transition-colors"
                 />
               </div>
               <div>
-                <label className="block text-xs text-zinc-400 mb-1.5">
-                  Model
-                </label>
+                <label className="block text-xs text-white/40 mb-2">Model</label>
                 <input
                   type="text"
                   value={llm.model}
                   onChange={(e) => setLlm({ ...llm, model: e.target.value })}
                   placeholder="claude-sonnet-4-20250514, gpt-4o, etc."
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-emerald-500/50"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-emerald-500/50 transition-colors"
                 />
               </div>
             </div>
 
             {llm.provider !== "ollama" && llm.provider !== "" && (
               <div>
-                <label className="block text-xs text-zinc-400 mb-1.5">
-                  API Key
-                </label>
+                <label className="block text-xs text-white/40 mb-2">API Key</label>
                 <input
                   type="password"
                   value={llm.apiKey}
                   onChange={(e) => setLlm({ ...llm, apiKey: e.target.value })}
                   placeholder="sk-..."
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-emerald-500/50"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-emerald-500/50 transition-colors"
                 />
-                <p className="text-[10px] text-zinc-600 mt-1">
-                  Stored encrypted with AES-256-GCM. Never logged or exposed.
-                </p>
+                <p className="text-[10px] text-white/30 mt-2">Stored encrypted with AES-256-GCM</p>
               </div>
             )}
 
             {(llm.provider === "openai" || llm.provider === "ollama" || llm.baseUrl) && (
               <div>
-                <label className="block text-xs text-zinc-400 mb-1.5">
-                  Base URL{" "}
-                  {llm.provider === "ollama" && "(default: localhost:11434)"}
+                <label className="block text-xs text-white/40 mb-2">
+                  Base URL {llm.provider === "ollama" && "(default: localhost:11434)"}
                 </label>
                 <input
                   type="url"
                   value={llm.baseUrl}
                   onChange={(e) => setLlm({ ...llm, baseUrl: e.target.value })}
-                  placeholder={
-                    llm.provider === "ollama"
-                      ? "http://localhost:11434/api"
-                      : "https://api.openai.com/v1"
-                  }
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-emerald-500/50"
+                  placeholder={llm.provider === "ollama" ? "http://localhost:11434/api" : "https://api.openai.com/v1"}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-emerald-500/50 transition-colors"
                 />
               </div>
             )}
@@ -174,7 +175,7 @@ export default function SettingsPage() {
             <button
               type="submit"
               disabled={!connected}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white text-sm rounded-md transition-colors font-medium"
+              className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:bg-white/10 disabled:text-white/30 text-black text-sm font-medium rounded-xl transition-colors"
             >
               Save LLM Settings
             </button>
@@ -182,42 +183,48 @@ export default function SettingsPage() {
         </section>
 
         {/* Telegram Configuration */}
-        <section className="bg-zinc-900 rounded-lg border border-zinc-800 p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">Telegram Bot</h3>
+        <section className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                <Shield size={20} className="text-blue-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-light">Telegram Bot</h3>
+                <p className="text-xs text-white/40">Bot configuration and access control</p>
+              </div>
+            </div>
             {savedSection === "telegram" && (
-              <span className="text-xs text-emerald-400">Saved!</span>
+              <span className="flex items-center gap-1 text-xs text-emerald-400">
+                <Check size={14} /> Saved
+              </span>
             )}
           </div>
           <form onSubmit={handleSaveTelegram} className="space-y-4">
             <div>
-              <label className="block text-xs text-zinc-400 mb-1.5">
-                Bot Token
-              </label>
+              <label className="block text-xs text-white/40 mb-2">Bot Token</label>
               <input
                 type="password"
                 value={telegramToken}
                 onChange={(e) => setTelegramToken(e.target.value)}
                 placeholder="123456:ABC-DEF..."
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-emerald-500/50"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 transition-colors"
               />
             </div>
             <div>
-              <label className="block text-xs text-zinc-400 mb-1.5">
-                Pre-approved User IDs (comma-separated)
-              </label>
+              <label className="block text-xs text-white/40 mb-2">Pre-approved User IDs</label>
               <input
                 type="text"
                 value={approvedUsers}
                 onChange={(e) => setApprovedUsers(e.target.value)}
                 placeholder="123456789, 987654321"
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-emerald-500/50"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 transition-colors"
               />
             </div>
             <button
               type="submit"
               disabled={!connected}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white text-sm rounded-md transition-colors font-medium"
+              className="px-5 py-2.5 bg-blue-500 hover:bg-blue-400 disabled:bg-white/10 disabled:text-white/30 text-black text-sm font-medium rounded-xl transition-colors"
             >
               Save Telegram Settings
             </button>
@@ -225,59 +232,62 @@ export default function SettingsPage() {
         </section>
 
         {/* PIN Change */}
-        <section className="bg-zinc-900 rounded-lg border border-zinc-800 p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">Encryption PIN</h3>
+        <section className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                <Lock size={20} className="text-amber-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-light">Encryption PIN</h3>
+                <p className="text-xs text-white/40">Secure your stored secrets</p>
+              </div>
+            </div>
             {savedSection === "pin" && (
-              <span className="text-xs text-emerald-400">PIN changed!</span>
+              <span className="flex items-center gap-1 text-xs text-emerald-400">
+                <Check size={14} /> PIN changed
+              </span>
             )}
           </div>
-          <p className="text-xs text-zinc-500 mb-4">
-            The PIN is used to derive the encryption key (PBKDF2 + AES-256-GCM)
-            for all stored secrets.
+          <p className="text-xs text-white/30 mb-6">
+            The PIN is used to derive the encryption key (PBKDF2 + AES-256-GCM) for all stored secrets.
           </p>
           <form onSubmit={handleChangePin} className="space-y-4">
             <div>
-              <label className="block text-xs text-zinc-400 mb-1.5">
-                Current PIN
-              </label>
+              <label className="block text-xs text-white/40 mb-2">Current PIN</label>
               <input
                 type="password"
                 value={currentPin}
                 onChange={(e) => setCurrentPin(e.target.value)}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-emerald-500/50"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs text-zinc-400 mb-1.5">
-                  New PIN
-                </label>
+                <label className="block text-xs text-white/40 mb-2">New PIN</label>
                 <input
                   type="password"
                   value={newPin}
                   onChange={(e) => setNewPin(e.target.value)}
                   minLength={4}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-emerald-500/50"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors"
                 />
               </div>
               <div>
-                <label className="block text-xs text-zinc-400 mb-1.5">
-                  Confirm New PIN
-                </label>
+                <label className="block text-xs text-white/40 mb-2">Confirm PIN</label>
                 <input
                   type="password"
                   value={confirmPin}
                   onChange={(e) => setConfirmPin(e.target.value)}
                   minLength={4}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-emerald-500/50"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors"
                 />
               </div>
             </div>
             <button
               type="submit"
               disabled={!connected || !currentPin || !newPin || !confirmPin}
-              className="px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white text-sm rounded-md transition-colors font-medium"
+              className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 disabled:bg-white/10 disabled:text-white/30 text-black text-sm font-medium rounded-xl transition-colors"
             >
               Change PIN
             </button>
@@ -285,27 +295,29 @@ export default function SettingsPage() {
         </section>
 
         {/* Danger Zone */}
-        <section className="bg-zinc-900 rounded-lg border border-red-500/20 p-6">
-          <h3 className="text-lg font-semibold text-red-400 mb-4">
-            Danger Zone
-          </h3>
+        <section className="bg-white/[0.02] border border-red-500/10 rounded-2xl p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
+              <Trash2 size={20} className="text-red-400" />
+            </div>
+            <div>
+              <h3 className="text-lg font-light">Danger Zone</h3>
+              <p className="text-xs text-white/40">Irreversible actions</p>
+            </div>
+          </div>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-zinc-300">Clear all sessions</p>
-              <p className="text-xs text-zinc-500">
-                Disconnect all active sessions and clear conversation history
-              </p>
+              <p className="text-sm text-white/60">Clear all sessions</p>
+              <p className="text-xs text-white/30">Disconnect all active sessions and clear conversation history</p>
             </div>
             <button
               onClick={() => {
-                if (
-                  confirm("Are you sure? This will clear all active sessions.")
-                ) {
+                if (confirm("Are you sure? This will clear all active sessions.")) {
                   socket?.emit("sessions:clear-all");
                 }
               }}
               disabled={!connected}
-              className="px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/20 text-red-400 text-sm rounded-md transition-colors font-medium disabled:opacity-50"
+              className="px-5 py-2.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 text-sm font-medium rounded-xl transition-colors"
             >
               Clear Sessions
             </button>

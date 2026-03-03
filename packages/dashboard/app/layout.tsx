@@ -4,8 +4,8 @@ import { SocketProvider } from "@/lib/socket";
 import { Sidebar } from "@/components/sidebar";
 
 export const metadata: Metadata = {
-  title: "SecureClaudebot — Mission Control",
-  description: "Ultra-secure personal AI gateway dashboard",
+  title: "SecureClaudebot",
+  description: "Ultra-secure personal AI gateway",
   manifest: "/manifest.json",
 };
 
@@ -20,11 +20,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <body className="bg-zinc-950 text-zinc-100 antialiased min-h-screen">
+      <body className="bg-[#0a0a0a] text-white antialiased min-h-screen">
         <SocketProvider>
           <div className="flex min-h-screen">
             <Sidebar />
-            <main className="flex-1 overflow-auto">{children}</main>
+            <main className="flex-1 overflow-auto bg-[#0a0a0a]">{children}</main>
           </div>
         </SocketProvider>
       </body>
