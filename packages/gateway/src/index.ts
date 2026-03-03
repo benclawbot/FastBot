@@ -52,7 +52,31 @@ async function main() {
   const llmRouter = new LlmRouter(config.llm);
 
   // Create HTTP + Socket.io server
-  const httpServer = createServer();
+  const httpServer = createServer((req, res) => {
+    // Gateway info endpoint for dashboard port discovery
+    if (req.url === "/gateway-info" && req.method === "GET") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          port: config.server.port,
+          host: config.server.host,
+          protocol: "ws",
+        })
+      );
+      return;
+    }
+
+    // Health check endpoint
+    if (req.url === "/health" && req.method === "GET") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ status: "ok", port: config.server.port }));
+      return;
+    }
+
+    // Default 404
+    res.writeHead(404, { "Content-Type": "text/plain" });
+    res.end("Not Found");
+  });
   const io = new SocketServer(httpServer, {
     cors: {
       origin: [
@@ -228,13 +252,20 @@ async function main() {
 
   // Start listening
   const { port, host } = config.server;
-  httpServer.listen(port, host, () => {
-    log.info({ host, port }, "Gateway listening");
+  httpServer.listen(port ?? 30000, host, () => {
+    const finalPort = port ?? 30000;
+    log.info({ host, port: finalPort }, "Gateway listening");
+
+    // Announce the port to connected clients for dashboard discovery
+    io.emit("gateway:info", { port: finalPort, host });
+
     audit.log({
       event: "session.created",
       actor: "system",
-      detail: `Gateway started on ${host}:${port}`,
+      detail: `Gateway started on ${host}:${finalPort}`,
     });
+
+    console.log(`\n🔐 Gateway running on ws://${host}:${finalPort}\n`);
   });
 
   // Graceful shutdown

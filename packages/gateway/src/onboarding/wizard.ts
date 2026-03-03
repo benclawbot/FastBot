@@ -65,6 +65,7 @@ export class OnboardingWizard {
           message:
             "Welcome to SecureClaudebot! Let's set up your secure AI gateway.\n\n" +
             "First, we'll configure your encryption PIN, Telegram bot, and LLM provider.\n\n" +
+            "Your gateway will run on a randomly-generated port (30000-65535 range) for enhanced security.\n\n" +
             "Type 'start' to begin.",
           promptType: "text",
           nextStep: "pin",

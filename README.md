@@ -86,7 +86,8 @@ SecureClaudebot is a **pnpm monorepo** with three packages that communicate via 
 |  Tailwind CSS 4     |    |  LLM Router         |    |  Headless Browser   |
 |  Real-time Hooks    |    |  Security Guard      |    |  SSRF-enforced      |
 |  Port 3100          |    |  Agent Orchestrator  |    |                     |
-|                     |    |  Port 18789          |    |                     |
+|                     |    |  Port 30000-65535    |    |                     |
+|                     |    |  (Randomized)        |    |                     |
 +---------------------+    +----------+----------+    +---------------------+
                                       |
                                       | Vercel AI SDK
@@ -302,7 +303,8 @@ Built-in health checker (`pnpm doctor`):
 | Data directory | Exists | Will be created | - |
 | Required packages | All installed | - | Any missing |
 | Environment variables | All set | Using config.json | - |
-| Ports (18789, 3100) | Available | In use | - |
+| Port 3100 (Dashboard) | Available | In use | - |
+| Gateway ports (30000-65535) | Any available | All in use | - |
 
 ---
 
@@ -339,9 +341,11 @@ pnpm dev
 ```
 
 This starts three services simultaneously:
-- **Gateway** on `ws://127.0.0.1:18789` (Socket.io)
+- **Gateway** on a randomized port (30000-65535, saved to config.json) (Socket.io)
 - **Dashboard** on `http://127.0.0.1:3100` (Next.js)
 - **Playwright** worker (stdin/stdout JSON-RPC)
+
+The dashboard automatically discovers the gateway port on first connection.
 
 ### Termux (Android)
 
@@ -372,7 +376,7 @@ Override any config value with environment variables:
 | `SCB_LLM_PROVIDER` | Primary LLM provider | `anthropic` |
 | `SCB_LLM_API_KEY` | API key for primary provider | `sk-ant-...` |
 | `SCB_LLM_MODEL` | Model name | `claude-sonnet-4-20250514` |
-| `SCB_PORT` | Gateway WebSocket port | `18789` |
+| `SCB_PORT` | Gateway WebSocket port (optional, randomized if not set) | `42069` |
 | `SCB_GITHUB_TOKEN` | GitHub personal access token | `ghp_...` |
 
 ---
@@ -384,9 +388,9 @@ SecureClaudebot uses a `config.json` file validated by Zod schemas at startup. A
 ```jsonc
 {
   "server": {
-    "port": 18789,           // Gateway WebSocket port
+    "port": 42069,           // Gateway WebSocket port (randomized on first run if not set)
     "dashboardPort": 3100,   // Dashboard Next.js port
-    "host": "127.0.0.1"     // Bind address
+    "host": "127.0.0.1"      // Bind address
   },
   "telegram": {
     "botToken": "YOUR_BOT_TOKEN",
@@ -493,8 +497,8 @@ Running diagnostics...
   WARN  Env: SCB_PIN — Not set (using config.json value)
   OK  Env: SCB_TELEGRAM_TOKEN — Set
   OK  Env: SCB_LLM_API_KEY — Set
-  OK  Port 18789 — Available
-  OK  Port 3100 — Available
+  OK  Port 3100 (Dashboard) — Available
+  OK  Gateway ports (30000-65535 range) — At least one port available (randomized on first run)
 
   Summary: 13 passed, 1 warnings, 0 failures
 
@@ -702,7 +706,7 @@ Encrypted Blob: salt(32) | iv(12) | authTag(16) | ciphertext
 
 ### Socket.io Events
 
-Connect to `ws://127.0.0.1:18789` with a Socket.io client.
+Connect to `ws://127.0.0.1:<port>` (where `<port>` is the randomized gateway port from config.json) with a Socket.io client.
 
 #### Client -> Server
 

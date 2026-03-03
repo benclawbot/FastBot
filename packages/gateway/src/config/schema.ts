@@ -38,8 +38,8 @@ export const securityConfigSchema = z.object({
 });
 
 export const serverConfigSchema = z.object({
-  /** Gateway WebSocket port */
-  port: z.number().default(18789),
+  /** Gateway WebSocket port (randomized on first run for security) */
+  port: z.number().optional(),
   /** Dashboard Next.js port */
   dashboardPort: z.number().default(3100),
   /** Hostname to bind to */

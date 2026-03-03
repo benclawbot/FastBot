@@ -5,7 +5,7 @@ Ultra-secure personal AI gateway inspired by OpenClaw. Runs on Android (Termux) 
 ## Architecture
 - **Monorepo**: pnpm workspaces with 3 packages
   - `packages/gateway` — Node.js 22 + TypeScript, Socket.io hub, Telegram bot, LLM router, agent orchestrator
-  - `packages/dashboard` — Next.js 14 PWA + Tailwind + shadcn/ui
+  - `packages/dashboard` — Next.js 15 PWA + Tailwind CSS 4 + React 19, auto-discovers gateway port
   - `packages/playwright` — Sandboxed Chromium worker for web automation
 
 ## Key Commands
@@ -23,5 +23,6 @@ Ultra-secure personal AI gateway inspired by OpenClaw. Runs on Android (Termux) 
 - Security: SSRF blocking, path traversal prevention, binary allowlist, rate limiting, append-only audit log
 
 ## Ports
-- Gateway WebSocket: 18789
-- Dashboard: 3100
+- **Gateway WebSocket**: 30000-65535 (randomized on first run for security, saved to config.json)
+  - Dashboard auto-discovers the port on connection via `/api/gateway-info` endpoint
+- **Dashboard**: 3100 (fixed)

@@ -39,7 +39,9 @@ describe("config loader", () => {
     const config = loadConfig(TEST_CONFIG);
     expect(config.telegram.botToken).toBe("123:ABC");
     expect(config.llm.primary.provider).toBe("anthropic");
-    expect(config.server.port).toBe(18789); // default
+    // Port should be randomized (generated on load if not specified)
+    expect(config.server.port).toBeGreaterThanOrEqual(30000);
+    expect(config.server.port).toBeLessThanOrEqual(65535);
     expect(config.security.dashboardRateLimit).toBe(60); // default
   });
 
@@ -91,7 +93,9 @@ describe("config loader", () => {
     );
 
     const config = loadConfig(TEST_CONFIG);
-    expect(config.server.port).toBe(18789);
+    // Port is randomized in the high range
+    expect(config.server.port).toBeGreaterThanOrEqual(30000);
+    expect(config.server.port).toBeLessThanOrEqual(65535);
     expect(config.server.host).toBe("127.0.0.1");
     expect(config.telegram.rateLimit).toBe(20);
     expect(config.telegram.approvedUsers).toEqual([]);

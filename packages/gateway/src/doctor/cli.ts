@@ -70,16 +70,28 @@ async function runChecks(): Promise<CheckResult[]> {
   }
 
   // 6. Port availability
-  for (const port of [18789, 3100]) {
-    const available = await checkPort(port);
-    results.push({
-      name: `Port ${port}`,
-      status: available ? "ok" : "warn",
-      detail: available
-        ? "Available"
-        : "In use — another instance may be running",
-    });
-  }
+  // Dashboard port is fixed at 3100
+  const dashboardAvailable = await checkPort(3100);
+  results.push({
+    name: "Port 3100 (Dashboard)",
+    status: dashboardAvailable ? "ok" : "warn",
+    detail: dashboardAvailable
+      ? "Available"
+      : "In use — another instance may be running",
+  });
+
+  // Gateway port is randomized, just check a sample of the range
+  const gatewayPortsSample = [30000, 40000, 50000, 60000];
+  const anyGatewayAvailable = (
+    await Promise.all(gatewayPortsSample.map((p) => checkPort(p)))
+  ).some((available) => available);
+  results.push({
+    name: "Gateway ports (30000-65535 range)",
+    status: anyGatewayAvailable ? "ok" : "warn",
+    detail: anyGatewayAvailable
+      ? "At least one port available (randomized on first run)"
+      : "All sample ports in use — check for running instances",
+  });
 
   return results;
 }
