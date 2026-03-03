@@ -3,21 +3,12 @@
 import { useState, type FormEvent } from "react";
 import { useSocket } from "@/lib/socket";
 
-type LlmProvider = "anthropic" | "openai" | "google" | "ollama";
-
 interface LlmSettings {
-  provider: LlmProvider;
+  provider: string;
   model: string;
   apiKey: string;
   baseUrl: string;
 }
-
-const DEFAULT_MODELS: Record<LlmProvider, string[]> = {
-  anthropic: ["claude-sonnet-4-20250514", "claude-3-5-haiku-20241022"],
-  openai: ["gpt-4o", "gpt-4o-mini"],
-  google: ["gemini-2.0-flash"],
-  ollama: ["llama3.2", "mistral", "codellama"],
-};
 
 export default function SettingsPage() {
   const { socket, connected } = useSocket();
@@ -25,7 +16,7 @@ export default function SettingsPage() {
   // LLM Settings
   const [llm, setLlm] = useState<LlmSettings>({
     provider: "anthropic",
-    model: "claude-sonnet-4-20250514",
+    model: "",
     apiKey: "",
     baseUrl: "",
   });
@@ -120,43 +111,29 @@ export default function SettingsPage() {
                 <label className="block text-xs text-zinc-400 mb-1.5">
                   Provider
                 </label>
-                <select
+                <input
+                  type="text"
                   value={llm.provider}
-                  onChange={(e) => {
-                    const p = e.target.value as LlmProvider;
-                    setLlm({
-                      ...llm,
-                      provider: p,
-                      model: DEFAULT_MODELS[p][0] ?? "",
-                    });
-                  }}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-emerald-500/50"
-                >
-                  <option value="anthropic">Anthropic (Claude)</option>
-                  <option value="openai">OpenAI</option>
-                  <option value="google">Google (Gemini)</option>
-                  <option value="ollama">Ollama (Local)</option>
-                </select>
+                  onChange={(e) => setLlm({ ...llm, provider: e.target.value })}
+                  placeholder="anthropic, openai, google, ollama"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-emerald-500/50"
+                />
               </div>
               <div>
                 <label className="block text-xs text-zinc-400 mb-1.5">
                   Model
                 </label>
-                <select
+                <input
+                  type="text"
                   value={llm.model}
                   onChange={(e) => setLlm({ ...llm, model: e.target.value })}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-emerald-500/50"
-                >
-                  {DEFAULT_MODELS[llm.provider].map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))}
-                </select>
+                  placeholder="claude-sonnet-4-20250514, gpt-4o, etc."
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-emerald-500/50"
+                />
               </div>
             </div>
 
-            {llm.provider !== "ollama" && (
+            {llm.provider !== "ollama" && llm.provider !== "" && (
               <div>
                 <label className="block text-xs text-zinc-400 mb-1.5">
                   API Key
@@ -174,7 +151,7 @@ export default function SettingsPage() {
               </div>
             )}
 
-            {(llm.provider === "openai" || llm.provider === "ollama") && (
+            {(llm.provider === "openai" || llm.provider === "ollama" || llm.baseUrl) && (
               <div>
                 <label className="block text-xs text-zinc-400 mb-1.5">
                   Base URL{" "}
