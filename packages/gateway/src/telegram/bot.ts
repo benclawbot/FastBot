@@ -22,6 +22,26 @@ export class TelegramBot {
     this.approval = new ApprovalManager(ctx.config.telegram.approvedUsers);
     this.systemPrompt = getBotSystemPrompt();
     this.setupHandlers();
+    this.registerCommands();
+  }
+
+  /**
+   * Register bot commands to override any old commands
+   */
+  private async registerCommands(): Promise<void> {
+    try {
+      await this.bot.api.setMyCommands([
+        { command: "start", description: "Start the bot" },
+        { command: "help", description: "Show available commands" },
+        { command: "status", description: "Check system status" },
+        { command: "voice", description: "Enable voice replies" },
+        { command: "text", description: "Disable voice replies" },
+        { command: "models", description: "List available LLM models" },
+      ]);
+      log.info("Bot commands registered");
+    } catch (err) {
+      log.warn({ err }, "Failed to register bot commands");
+    }
   }
 
   private setupHandlers(): void {
@@ -116,6 +136,25 @@ export class TelegramBot {
           `/voice - Enable voice replies\n` +
           `/text - Disable voice replies\n` +
           `/models - List available LLM models`,
+        { parse_mode: "Markdown" }
+      );
+    });
+
+    // /models command
+    this.bot.command("models", async (botCtx) => {
+      const userId = botCtx.from?.id;
+      if (!userId || !this.approval.isApproved(userId)) {
+        await botCtx.reply("Not authorized.");
+        return;
+      }
+
+      const provider = this.ctx.config.llm.primary?.provider;
+      const model = this.ctx.config.llm.primary?.model;
+      await botCtx.reply(
+        `*Available LLM*\n\n` +
+          `Provider: ${provider || "unknown"}\n` +
+          `Model: ${model || "unknown"}\n\n` +
+          `Configured fallback: ${this.ctx.config.llm.fallbacks?.length || 0}`,
         { parse_mode: "Markdown" }
       );
     });
