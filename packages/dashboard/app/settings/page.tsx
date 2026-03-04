@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, type FormEvent } from "react";
+import { useState, useEffect, useRef, type FormEvent } from "react";
 import { useSocket } from "@/lib/socket";
-import { Bot, Lock, Shield, Trash2, Check, AlertCircle, Link2, Github, Unlink, Zap, Globe } from "lucide-react";
+import { Bot, Lock, Shield, Trash2, Check, AlertCircle, Link2, Github, Unlink, Zap, Globe, Volume2, Play } from "lucide-react";
 
 interface LlmSettings {
   provider: string;
@@ -54,6 +54,15 @@ export default function SettingsPage() {
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
 
+  // Voice Settings
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [voiceProvider, setVoiceProvider] = useState("gtts");
+  const [voiceId, setVoiceId] = useState("en");
+  const [voiceSpeed, setVoiceSpeed] = useState(1.0);
+  const [isTestingVoice, setIsTestingVoice] = useState(false);
+  const [voiceTestResult, setVoiceTestResult] = useState<{ error?: string } | null>(null);
+  const voiceSettingsLoadingRef = useRef(false);
+
   // Feedback
   const [savedSection, setSavedSection] = useState<string | null>(null);
   const [error, setError] = useState<{ error: string; hint: string } | null>(null);
@@ -97,11 +106,44 @@ export default function SettingsPage() {
     // Request initial tailscale status
     socket.emit("tailscale:status");
 
+    // Voice settings
+    socket.on("voice:status", (data: { enabled: boolean; provider: string; voiceId: string; voiceSpeed: number }) => {
+      // Only update from socket if we're not actively changing the setting
+      if (!voiceSettingsLoadingRef.current) {
+        setVoiceEnabled(data.enabled);
+        setVoiceProvider(data.provider);
+        setVoiceId(data.voiceId);
+        setVoiceSpeed(data.voiceSpeed);
+      }
+    });
+
+    socket.on("voice:test:result", (data: { audio?: string; format?: string; error?: string }) => {
+      setIsTestingVoice(false);
+      if (data.error) {
+        setVoiceTestResult({ error: data.error });
+        return;
+      }
+      if (data.audio) {
+        // Play the audio
+        const audio = new Audio(`data:audio/${data.format || "mp3"};base64,${data.audio}`);
+        audio.play().catch(err => {
+          console.error("Failed to play audio:", err);
+          setVoiceTestResult({ error: "Failed to play audio" });
+        });
+        setVoiceTestResult(null);
+      }
+    });
+
+    // Request initial voice status
+    socket.emit("voice:status:request");
+
     return () => {
       socket.off("settings:saved");
       socket.off("tailscale:status");
       socket.off("tailscale:connected");
       socket.off("tailscale:disconnected");
+      socket.off("voice:status");
+      socket.off("voice:test:result");
     };
   }, [socket]);
 
@@ -330,6 +372,203 @@ export default function SettingsPage() {
               Save Telegram Settings
             </button>
           </form>
+        </section>
+
+        {/* Voice Settings */}
+        <section className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                <Volume2 size={20} className="text-purple-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-light">Voice Settings</h3>
+                <p className="text-xs text-white/40">Configure Telegram voice replies</p>
+              </div>
+            </div>
+            {savedSection === "voice" && (
+              <span className="flex items-center gap-1 text-xs text-emerald-400">
+                <Check size={14} /> Saved
+              </span>
+            )}
+          </div>
+
+          {voiceTestResult?.error && (
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+              <p className="text-xs text-red-400">{voiceTestResult.error}</p>
+            </div>
+          )}
+
+          <div className="space-y-5">
+            {/* Enable Voice Replies Toggle */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-white/70">Voice Replies</p>
+                <p className="text-xs text-white/40">Respond with voice notes in Telegram</p>
+              </div>
+              <button
+                onClick={() => {
+                  const newValue = !voiceEnabled;
+                  voiceSettingsLoadingRef.current = true;
+                  setVoiceEnabled(newValue);
+                  socket?.emit("voice:settings:update", { enabled: newValue });
+                  showSaved("voice");
+                  // Allow socket updates again after a short delay
+                  setTimeout(() => { voiceSettingsLoadingRef.current = false; }, 500);
+                }}
+                disabled={!connected}
+                className={`relative w-12 h-6 rounded-full transition-colors ${
+                  voiceEnabled ? "bg-purple-500" : "bg-white/10"
+                } disabled:opacity-50`}
+              >
+                <span
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                    voiceEnabled ? "translate-x-7" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Voice Provider */}
+            <div>
+              <label className="block text-xs text-white/40 mb-2">Voice Provider</label>
+              <select
+                value={voiceProvider}
+                onChange={(e) => {
+                  setVoiceProvider(e.target.value);
+                  // Set default voice ID based on provider
+                  const defaults: Record<string, string> = {
+                    gtts: "en",
+                    elevenlabs: "rachel",
+                    openai: "alloy",
+                    coqui: "tts_models/en/ljspeech/glow-tts",
+                    piper: "en_US-lessac-medium",
+                  };
+                  setVoiceId(defaults[e.target.value] || "en");
+                }}
+                disabled={!connected}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-purple-500/50 transition-colors appearance-none cursor-pointer disabled:opacity-50"
+                style={{ backgroundImage: "none" }}
+              >
+                <option value="gtts" className="bg-zinc-900">gTTS (Free - Google Translate)</option>
+                <option value="elevenlabs" className="bg-zinc-900">ElevenLabs (Premium)</option>
+                <option value="openai" className="bg-zinc-900">OpenAI TTS</option>
+                <option value="coqui" className="bg-zinc-900">Coqui TTS (Local)</option>
+                <option value="piper" className="bg-zinc-900">Piper TTS (Local)</option>
+              </select>
+            </div>
+
+            {/* Voice/Language Selection */}
+            <div>
+              <label className="block text-xs text-white/40 mb-2">
+                {voiceProvider === "gtts" ? "Language" : "Voice"}
+              </label>
+              <select
+                value={voiceId}
+                onChange={(e) => setVoiceId(e.target.value)}
+                disabled={!connected}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-purple-500/50 transition-colors appearance-none cursor-pointer disabled:opacity-50"
+                style={{ backgroundImage: "none" }}
+              >
+                {voiceProvider === "gtts" && (
+                  <>
+                    <option value="en" className="bg-zinc-900">English</option>
+                    <option value="en-us" className="bg-zinc-900">English (US)</option>
+                    <option value="fr" className="bg-zinc-900">French</option>
+                    <option value="de" className="bg-zinc-900">German</option>
+                    <option value="es" className="bg-zinc-900">Spanish</option>
+                    <option value="it" className="bg-zinc-900">Italian</option>
+                    <option value="ja" className="bg-zinc-900">Japanese</option>
+                    <option value="ko" className="bg-zinc-900">Korean</option>
+                    <option value="pt" className="bg-zinc-900">Portuguese</option>
+                    <option value="ru" className="bg-zinc-900">Russian</option>
+                  </>
+                )}
+                {voiceProvider === "elevenlabs" && (
+                  <>
+                    <option value="rachel" className="bg-zinc-900">Rachel</option>
+                    <option value="domi" className="bg-zinc-900">Domi</option>
+                    <option value="bella" className="bg-zinc-900">Bella</option>
+                    <option value="adam" className="bg-zinc-900">Adam</option>
+                  </>
+                )}
+                {voiceProvider === "openai" && (
+                  <>
+                    <option value="alloy" className="bg-zinc-900">Alloy</option>
+                    <option value="echo" className="bg-zinc-900">Echo</option>
+                    <option value="fable" className="bg-zinc-900">Fable</option>
+                    <option value="onyx" className="bg-zinc-900">Onyx</option>
+                    <option value="nova" className="bg-zinc-900">Nova</option>
+                    <option value="shimmer" className="bg-zinc-900">Shimmer</option>
+                  </>
+                )}
+                {voiceProvider === "coqui" && (
+                  <>
+                    <option value="tts_models/en/ljspeech/glow-tts" className="bg-zinc-900">Glow TTS (English)</option>
+                    <option value="tts_models/en/ljspeech/fast_pitch" className="bg-zinc-900">Fast Pitch (English)</option>
+                    <option value="tts_models/multilingual/multi-dataset/xtts_v2" className="bg-zinc-900">XTTS v2 (Multilingual)</option>
+                  </>
+                )}
+                {voiceProvider === "piper" && (
+                  <>
+                    <option value="en_US-lessac-medium" className="bg-zinc-900">Lessac Medium</option>
+                    <option value="en_US-lessac-medium.onnx" className="bg-zinc-900">Lessac Medium (ONNX)</option>
+                  </>
+                )}
+              </select>
+            </div>
+
+            {/* Voice Speed */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs text-white/40">Voice Speed</label>
+                <span className="text-xs text-purple-400">{voiceSpeed.toFixed(1)}x</span>
+              </div>
+              <input
+                type="range"
+                min="0.5"
+                max="2.0"
+                step="0.1"
+                value={voiceSpeed}
+                onChange={(e) => setVoiceSpeed(parseFloat(e.target.value))}
+                disabled={!connected}
+                className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer disabled:opacity-50 accent-purple-500"
+              />
+              <div className="flex justify-between text-[10px] text-white/30 mt-1">
+                <span>0.5x (Slow)</span>
+                <span>1.0x (Normal)</span>
+                <span>2.0x (Fast)</span>
+              </div>
+            </div>
+
+            {/* Test Button */}
+            <div className="flex items-center gap-4 pt-2">
+              <button
+                onClick={() => {
+                  setIsTestingVoice(true);
+                  setVoiceTestResult(null);
+                  socket?.emit("voice:settings:update", {
+                    provider: voiceProvider,
+                    voiceId: voiceId,
+                    voiceSpeed: voiceSpeed,
+                  });
+                  showSaved("voice");
+                  // Wait a bit then trigger test
+                  setTimeout(() => {
+                    socket?.emit("voice:test");
+                  }, 300);
+                }}
+                disabled={!connected || isTestingVoice}
+                className="flex items-center gap-2 px-5 py-2.5 bg-purple-500 hover:bg-purple-400 disabled:bg-white/10 disabled:text-white/30 text-black text-sm font-medium rounded-xl transition-colors"
+              >
+                <Play size={16} />
+                {isTestingVoice ? "Testing..." : "Test Voice"}
+              </button>
+              <span className="text-xs text-white/40">
+                Plays a sample sentence with current settings
+              </span>
+            </div>
+          </div>
         </section>
 
         {/* OAuth Integrations */}

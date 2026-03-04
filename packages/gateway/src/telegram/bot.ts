@@ -370,13 +370,10 @@ export class TelegramBot {
         voice: voiceConfig.voiceId,
       });
 
-      // Send voice note to Telegram
-      // Telegram requires audio as a file or InputFile
+      // Send voice note to Telegram (no caption)
       const { InputFile } = await import("grammy");
       const buffer = result.audio;
-      await this.bot.api.sendVoice(userId, new InputFile(buffer, "voice.mp3"), {
-        caption: "(voice reply)",
-      });
+      await this.bot.api.sendVoice(userId, new InputFile(buffer, "voice.mp3"));
       log.info({ userId, textLength: text.length }, "Sent voice reply");
     } catch (err) {
       log.error({ userId, err }, "Failed to send voice reply, falling back to text");

@@ -1,11 +1,31 @@
 "use client";
 
 import { useStatus } from "@/lib/hooks";
+import { useSocket } from "@/lib/socket";
 import Link from "next/link";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { MessageCircle, Activity, Settings, Cpu, Clock, HardDrive } from "lucide-react";
 
 export default function Home() {
   const { status, connected } = useStatus();
+  const { socket } = useSocket();
+  const router = useRouter();
+
+  // Check if setup is needed
+  useEffect(() => {
+    if (socket && connected) {
+      socket.emit("setup:check");
+      socket.on("setup:status", (data: { needsSetup: boolean; isConfigured: boolean }) => {
+        if (data.needsSetup && !data.isConfigured) {
+          router.replace("/setup");
+        }
+      });
+      return () => {
+        socket.off("setup:status");
+      };
+    }
+  }, [socket, connected, router]);
 
   const formatUptime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);

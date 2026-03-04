@@ -12,6 +12,8 @@ export const telegramConfigSchema = z.object({
   voiceProvider: z.enum(["gtts", "elevenlabs", "openai", "coqui", "piper"]).default("gtts"),
   /** Voice ID (language for gtts, model for coqui/piper, voice ID for elevenlabs/openai) */
   voiceId: z.string().default("en"),
+  /** Voice speed: 0.5 = slow, 1.0 = normal, 2.0 = fast */
+  voiceSpeed: z.number().min(0.5).max(2.0).default(1.0),
 });
 
 export const llmProviderSchema = z.object({

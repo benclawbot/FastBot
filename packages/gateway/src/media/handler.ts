@@ -22,15 +22,51 @@ export interface MediaFile {
 
 /** Allowed MIME types for upload */
 const ALLOWED_MIME_TYPES = new Set([
+  // Images
   "image/jpeg",
   "image/png",
   "image/gif",
   "image/webp",
+  "image/svg+xml",
+  "image/bmp",
+  "image/tiff",
+  // Videos
+  "video/mp4",
+  "video/webm",
+  "video/ogg",
+  "video/quicktime",
+  "video/x-msvideo",
+  // Audio
+  "audio/mpeg",
+  "audio/wav",
+  "audio/ogg",
+  "audio/webm",
+  "audio/mp3",
+  // Documents
   "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  // Text
   "text/plain",
   "text/markdown",
   "text/csv",
+  "text/html",
+  "text/css",
+  "text/javascript",
   "application/json",
+  "application/xml",
+  "text/xml",
+  // Compressed
+  "application/zip",
+  "application/x-zip-compressed",
+  "application/gzip",
+  "application/x-tar",
+  "application/x-rar-compressed",
+  "application/7z",
 ]);
 
 /** Max file size: 25 MB */
@@ -101,6 +137,30 @@ export class MediaHandler {
     const path = this.resolvePath(filenameOrId);
     if (!path || !existsSync(path)) return null;
     return readFileSync(path);
+  }
+
+  /**
+   * Get a stored file with its data by ID.
+   */
+  get(filenameOrId: string): MediaFile & { data: Buffer } | null {
+    const path = this.resolvePath(filenameOrId);
+    if (!path || !existsSync(path)) return null;
+
+    const stat = statSync(path);
+    const ext = extname(path);
+    const id = filenameOrId;
+    const data = readFileSync(path);
+
+    return {
+      id,
+      filename: `${id}${ext}`,
+      originalName: id,
+      mimeType: this.extToMime(ext),
+      sizeBytes: stat.size,
+      path,
+      createdAt: stat.mtimeMs,
+      data,
+    };
   }
 
   /**

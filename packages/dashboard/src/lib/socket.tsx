@@ -43,14 +43,12 @@ const SocketContext = createContext<SocketContextValue>({
 
 export function SocketProvider({ children }: { children: ReactNode }) {
   const [connected, setConnected] = useState(false);
-  const [gatewayUrl, setGatewayUrl] = useState<string | null>(null);
-  const socketRef = useRef<Socket | null>(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
 
   useEffect(() => {
     discoverGatewayPort().then((port) => {
       const hostname = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
       const url = `http://${hostname}:${port}`;
-      setGatewayUrl(url);
 
       const s = io(url, {
         transports: ["websocket", "polling"],
@@ -60,15 +58,14 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         reconnectionDelayMax: 10000,
       });
 
-      socketRef.current = s;
-
       s.on("connect", () => setConnected(true));
       s.on("disconnect", () => setConnected(false));
+      setSocket(s);
     });
   }, []);
 
   return (
-    <SocketContext.Provider value={{ socket: socketRef.current, connected }}>
+    <SocketContext.Provider value={{ socket, connected }}>
       {children}
     </SocketContext.Provider>
   );

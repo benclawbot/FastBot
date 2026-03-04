@@ -22,6 +22,7 @@ import {
   triggerOrchestration,
 } from "./orchestration/chat-integration.js";
 import { QmdStore } from "./qmd/store.js";
+import { MediaHandler } from "./media/handler.js";
 import { transcribeBuffer } from "./voice/whisper.js";
 import { textToSpeech } from "./voice/tts.js";
 import { getBotSystemPrompt } from "./bot/context.js";
@@ -44,6 +45,7 @@ export interface GatewayContext {
   tailscale: TailscaleManager | null;
   agents: AgentsManager | null;
   qmd: QmdStore | null;
+  media: MediaHandler | null;
 }
 
 async function main() {
@@ -110,6 +112,7 @@ async function main() {
     tailscale: null,
     agents: null,
     qmd: null,
+    media: null,
   };
 
   // Load bot identity, role, and memories for system prompt
@@ -180,6 +183,10 @@ async function main() {
   } else {
     log.info("Agents not configured");
   }
+
+  // Initialize Media Handler
+  const mediaHandler = new MediaHandler();
+  ctx.media = mediaHandler;
 
   // Socket.io connection handler
   io.on("connection", (socket) => {
@@ -311,6 +318,42 @@ async function main() {
     // ── Status ──
     socket.on("status:request", async () => {
       socket.emit("status:update", await getSystemStatus(ctx));
+    });
+
+    // ── Setup / Onboarding ──
+    socket.on("setup:check", async () => {
+      // Check if LLM is configured (has model set)
+      const isConfigured = !!(config.llm.primary?.model);
+      socket.emit("setup:status", { needsSetup: !isConfigured, isConfigured });
+    });
+
+    socket.on("setup:complete", async (data: {
+      pin: string;
+      telegramToken?: string;
+      llmProvider: string;
+      llmModel: string;
+      llmApiKey?: string;
+      baseUrl?: string;
+    }) => {
+      try {
+        // Update config
+        if (data.pin) config.security.pin = data.pin;
+        if (data.telegramToken) config.telegram.botToken = data.telegramToken;
+        if (data.llmProvider) config.llm.primary.provider = data.llmProvider as any;
+        if (data.llmModel) config.llm.primary.model = data.llmModel;
+        if (data.llmApiKey) config.llm.primary.apiKey = data.llmApiKey;
+        if (data.baseUrl) config.llm.primary.baseUrl = data.baseUrl;
+
+        // Save config
+        const { saveConfig } = await import("./config/loader.js");
+        saveConfig(config);
+
+        log.info({ provider: data.llmProvider, model: data.llmModel }, "Setup completed");
+        socket.emit("setup:done", { success: true });
+      } catch (err) {
+        log.error({ err }, "Setup failed");
+        socket.emit("setup:done", { success: false, error: String(err) });
+      }
     });
 
     // ── Audit Log ──
@@ -803,7 +846,50 @@ async function main() {
     });
 
     socket.on("voice:status:request", async () => {
-      socket.emit("voice:status", { enabled: config.telegram.voiceReplies });
+      socket.emit("voice:status", {
+        enabled: config.telegram.voiceReplies,
+        provider: config.telegram.voiceProvider,
+        voiceId: config.telegram.voiceId,
+        voiceSpeed: config.telegram.voiceSpeed,
+      });
+    });
+
+    socket.on("voice:settings:update", async (data: { provider?: string; voiceId?: string; voiceSpeed?: number; enabled?: boolean }) => {
+      if (data.enabled !== undefined) config.telegram.voiceReplies = data.enabled;
+      if (data.provider) config.telegram.voiceProvider = data.provider as "gtts" | "elevenlabs" | "openai" | "coqui" | "piper";
+      if (data.voiceId) config.telegram.voiceId = data.voiceId;
+      if (data.voiceSpeed) config.telegram.voiceSpeed = data.voiceSpeed;
+      log.info({ settings: config.telegram }, "Voice settings updated");
+      socket.emit("voice:status", {
+        enabled: config.telegram.voiceReplies,
+        provider: config.telegram.voiceProvider,
+        voiceId: config.telegram.voiceId,
+        voiceSpeed: config.telegram.voiceSpeed,
+      });
+    });
+
+    socket.on("voice:test", async () => {
+      try {
+        const voiceConfig = config.telegram;
+        const apiKey = voiceConfig.voiceProvider === "elevenlabs"
+          ? config.voice?.elevenLabsApiKey
+          : config.llm.primary.apiKey;
+
+        const { textToSpeech } = await import("./voice/tts.js");
+        const testText = "Hello! This is a test of the voice settings. The quick brown fox jumps over the lazy dog.";
+        const result = await textToSpeech(testText, apiKey || "", {
+          provider: voiceConfig.voiceProvider,
+          voice: voiceConfig.voiceId,
+        });
+
+        socket.emit("voice:test:result", {
+          audio: result.audio.toString("base64"),
+          format: result.format,
+        });
+      } catch (err) {
+        log.error({ err }, "Voice test failed");
+        socket.emit("voice:test:result", { error: String(err) });
+      }
     });
 
     // ── File Upload ──
@@ -813,18 +899,58 @@ async function main() {
         const buffer = Buffer.from(data.content, "base64");
         const filename = data.filename;
 
-        // Check if it's an image
-        const isImage = data.type.startsWith("image/");
+        // Use MediaHandler to store the file
+        const mediaFile = mediaHandler.store(buffer, filename, data.type);
 
         socket.emit("file:uploaded", {
-          filename,
-          isImage,
-          size: buffer.length,
-          status: "received",
+          filename: mediaFile.filename,
+          isImage: mediaFile.mimeType.startsWith("image/"),
+          size: mediaFile.sizeBytes,
+          id: mediaFile.id,
+          status: "stored",
         });
       } catch (err) {
         log.error({ err }, "File upload failed");
         socket.emit("file:uploaded", { error: String(err) });
+      }
+    });
+
+    // ── Media List ──
+    socket.on("media:list", async () => {
+      try {
+        const files = mediaHandler.list();
+        socket.emit("media:files", { files });
+      } catch (err) {
+        log.error({ err }, "Failed to list media");
+        socket.emit("media:files", { error: String(err), files: [] });
+      }
+    });
+
+    // ── Media Get ──
+    socket.on("media:get", async (data: { id: string }) => {
+      try {
+        const file = mediaHandler.get(data.id);
+        if (file) {
+          // Read file content as base64
+          const content = file.data ? Buffer.from(file.data).toString("base64") : null;
+          socket.emit("media:file", { file: { ...file, content } });
+        } else {
+          socket.emit("media:file", { error: "File not found" });
+        }
+      } catch (err) {
+        log.error({ err }, "Failed to get media");
+        socket.emit("media:file", { error: String(err) });
+      }
+    });
+
+    // ── Media Delete ──
+    socket.on("media:delete", async (data: { id: string }) => {
+      try {
+        const success = mediaHandler.delete(data.id);
+        socket.emit("media:deleted", { success, id: data.id });
+      } catch (err) {
+        log.error({ err }, "Failed to delete media");
+        socket.emit("media:deleted", { success: false, error: String(err) });
       }
     });
 
