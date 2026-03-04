@@ -23,5 +23,6 @@ Ultra-secure personal AI gateway. Runs on Android (Termux) or any Node.js server
 - Security: SSRF blocking, path traversal prevention, binary allowlist, rate limiting, append-only audit log
 
 ## Ports
-- Gateway WebSocket: 18789
+- Gateway WebSocket: random (10000-60000, excludes 18789)
 - Dashboard: 3100
+- Note: Gateway port is randomized on startup when randomizePort=true in config

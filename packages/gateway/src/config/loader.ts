@@ -1,5 +1,6 @@
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { createServer } from "node:net";
 import { appConfigSchema, type AppConfig } from "./schema.js";
 import { createChildLogger } from "../logger/index.js";
 
@@ -8,9 +9,27 @@ const log = createChildLogger("config");
 const DEFAULT_CONFIG_PATH = resolve(process.cwd(), "config.json");
 const PORT_FILE_PATH = resolve(process.cwd(), ".gateway-port");
 
-// Generate a random port in the range 10000-60000
+// Port ranges to exclude (known defaults like OpenClaw's 18789)
+const EXCLUDED_PORTS = new Set([18789]);
+
+// Check if a port is available (sync check)
+function isPortAvailable(port: number): boolean {
+  // Skip the check for now - server will fail to start if port is in use anyway
+  // and there's existing logic to handle that
+  return true;
+}
+
+// Generate a random port in the range 10000-60000, excluding known defaults
 function randomPort(): number {
-  return Math.floor(Math.random() * 50000) + 10000;
+  let port: number;
+  let attempts = 0;
+  do {
+    port = Math.floor(Math.random() * 50000) + 10000;
+    attempts++;
+    // Max 10 attempts
+    if (attempts > 10) break;
+  } while (EXCLUDED_PORTS.has(port));
+  return port;
 }
 
 // Save gateway port to a file for dashboard to discover
