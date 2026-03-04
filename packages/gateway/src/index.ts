@@ -863,12 +863,58 @@ async function main() {
     }
   });
 
-  httpServer.listen(actualPort, host, () => {
-    log.info({ host, port: actualPort }, "Gateway listening");
+  // Get external IP addresses
+  async function getExternalIPs(): Promise<string[]> {
+    const ips: string[] = [];
+    const { networkInterfaces } = await import("node:os");
+    const nets = networkInterfaces();
+    for (const name of Object.keys(nets)) {
+      for (const net of nets[name] || []) {
+        if (net.family === "IPv4" && !net.internal) {
+          ips.push(net.address);
+        }
+      }
+    }
+    return ips;
+  }
+
+  httpServer.listen(actualPort, host, async () => {
+    const externalIPs = await getExternalIPs();
+    const dashboardPort = config.server.dashboardPort;
+
+    // Build startup info
+    const lines: string[] = [];
+    lines.push("");
+    lines.push("╔════════════════════════════════════════════════════════════╗");
+    lines.push("║              SecuredClaudeBot Started                     ║");
+    lines.push("╠════════════════════════════════════════════════════════════╣");
+    lines.push(`║  Gateway:  ws://${host}:${actualPort}`.padEnd(62) + "║");
+    lines.push(`║            ws://localhost:${actualPort}`.padEnd(62) + "║");
+    for (const ip of externalIPs.slice(0, 2)) {
+      lines.push(`║            ws://${ip}:${actualPort}`.padEnd(62) + "║");
+    }
+    lines.push("╠════════════════════════════════════════════════════════════╣");
+    lines.push(`║  Dashboard: http://${host}:${dashboardPort}`.padEnd(62) + "║");
+    lines.push(`║             http://localhost:${dashboardPort}`.padEnd(62) + "║");
+    for (const ip of externalIPs.slice(0, 2)) {
+      lines.push(`║             http://${ip}:${dashboardPort}`.padEnd(62) + "║");
+    }
+    if (config.telegram?.botToken) {
+      lines.push("╠════════════════════════════════════════════════════════════╣");
+      lines.push("║  Telegram: Bot token configured - search @BotFather        ║");
+    }
+    lines.push("╚════════════════════════════════════════════════════════════╝");
+    lines.push("");
+
+    for (const line of lines) {
+      console.log(line);
+    }
+
+    log.info({ host, port: actualPort, dashboardPort, externalIPs }, "Gateway listening");
     audit.log({
       event: "session.created",
       actor: "system",
-      detail: `Gateway started on ${host}:${actualPort}`,
+      detail: `Gateway started on ${host}:${actualPort}, Dashboard: ${host}:${dashboardPort}`,
     });
   });
 
