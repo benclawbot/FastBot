@@ -854,6 +854,73 @@ async function main() {
       }
     });
 
+    // ── Workflows ──
+    socket.on("workflows:list", async () => {
+      try {
+        // Get available workflow templates
+        const templates = [
+          {
+            id: "code-review",
+            name: "Code Review",
+            description: "Automated code review with AI analysis",
+            steps: ["Fetch code", "Run linters", "Analyze with AI", "Generate report"],
+            category: "development"
+          },
+          {
+            id: "data-analysis",
+            name: "Data Analysis",
+            description: "Analyze datasets and generate insights",
+            steps: ["Load data", "Clean data", "Run analysis", "Create visualizations"],
+            category: "analytics"
+          },
+          {
+            id: "content-generation",
+            name: "Content Generation",
+            description: "Generate blog posts, social media, and marketing content",
+            steps: ["Research topic", "Generate outline", "Write content", "SEO optimization"],
+            category: "marketing"
+          },
+          {
+            id: "bug-analysis",
+            name: "Bug Analysis",
+            description: "Analyze error logs and suggest fixes",
+            steps: ["Collect logs", "Analyze errors", "Identify root cause", "Suggest solutions"],
+            category: "development"
+          }
+        ];
+        socket.emit("workflows:list", { templates });
+      } catch (err) {
+        socket.emit("workflows:list", { error: String(err) });
+      }
+    });
+
+    socket.on("workflows:run", async (data: { workflowId: string; inputs?: Record<string, string> }) => {
+      try {
+        // Start orchestration with the workflow request
+        const request = `Run workflow: ${data.workflowId} with inputs: ${JSON.stringify(data.inputs || {})}`;
+        const response = await fetch("http://127.0.0.1:18790/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ request }),
+        });
+        const result = await response.json() as Record<string, unknown>;
+        socket.emit("workflows:started", { workflowId: data.workflowId, ...result });
+      } catch (err) {
+        socket.emit("workflows:error", { error: String(err) });
+      }
+    });
+
+    socket.on("workflows:history", async () => {
+      try {
+        // Get kanban board as history
+        const response = await fetch("http://127.0.0.1:18790/kanban");
+        const data = await response.json();
+        socket.emit("workflows:history", { history: data });
+      } catch (err) {
+        socket.emit("workflows:history", { error: String(err) });
+      }
+    });
+
     // ── QMD Search ──
     socket.on("qmd:search", async (data: { query: string; sources?: string[] }) => {
       if (!ctx.qmd) {
