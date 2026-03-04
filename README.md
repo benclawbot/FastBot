@@ -8,8 +8,11 @@ Ultra-secure personal AI gateway inspired by OpenClaw. Runs on Android (Termux) 
 - **Multi-Provider LLM Router** - OpenAI, Anthropic, Google, Ollama, MiniMax, Groq, DeepSeek, and more
 - **Web Dashboard** - Next.js PWA for mission control
 - **Setup Wizard** - First-run guided configuration (PIN, Telegram, LLM)
+- **Skills System** - Install Claude Code compatible skills for AI agents
 - **Agents Management** - Create and manage AI agents with persistent memories
 - **Orchestration** - CrewAI Flows for multi-agent task delegation
+- **Kanban Board** - Visual task management with drag-and-drop
+- **Workflow Automation** - Create and run custom workflow templates
 - **QMD Search** - Vector search across memories, chat history, and agent files
 - **RCA Scheduler** - Automated root cause analysis and lessons learned
 - **Sandboxed Browser** - Playwright-based web automation (included)
@@ -43,6 +46,15 @@ Ultra-secure personal AI gateway inspired by OpenClaw. Runs on Android (Termux) 
 ### Agents
 ![Agents](docs/images/dashboard-agents.png)
 
+### Kanban Board
+![Kanban](docs/images/dashboard-kanban.png)
+
+### Workflows
+![Workflows](docs/images/dashboard-workflows.png)
+
+### Skills
+![Skills](docs/images/dashboard-skills.png)
+
 ### Usage
 ![Usage](docs/images/dashboard-usage.png)
 
@@ -59,14 +71,17 @@ Ultra-secure personal AI gateway inspired by OpenClaw. Runs on Android (Termux) 
 │  ├── Socket.io hub for real-time communication           │
 │  ├── Telegram bot command handler                         │
 │  ├── LLM router (OpenAI, Anthropic, Google, Ollama)    │
+│  ├── Skills manager for Claude Code skills              │
 │  ├── Agent orchestrator                                  │
 │  ├── QMD vector search for memories                      │
 │  └── Security: SSRF, path traversal, rate limiting      │
 ├─────────────────────────────────────────────────────────────┤
 │  packages/dashboard   — Next.js 14 PWA                    │
 │  ├── Setup wizard for first-run configuration           │
-│  ├── Kanban board for task management                    │
 │  ├── Chat interface                                      │
+│  ├── Kanban board for task management                    │
+│  ├── Workflow automation templates                       │
+│  ├── Skills management (install/enable/disable)          │
 │  ├── Agents management                                   │
 │  ├── Media library                                       │
 │  ├── Usage statistics                                    │
@@ -370,12 +385,13 @@ Next.js PWA for user interface.
 - `/setup` - First-run setup wizard
 - `/chat` - Chat interface
 - `/kanban` - Task board (with orchestration)
+- `/workflows` - Workflow automation
+- `/skills` - Skills management (install Claude Code skills)
 - `/agents` - Agent management
 - `/status` - System status
 - `/usage` - Usage statistics
 - `/settings` - Configuration
 - `/media` - Media files library
-- `/workflows` - Workflow automation
 
 ### @fastbot/playwright
 
