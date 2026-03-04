@@ -167,7 +167,7 @@ wsl --install
 
 | Feature | Development | Production |
 |---------|-------------|------------|
-| **Command** | `pnpm dev` | `npx pm2 start ecosystem.config.js` |
+| **Command** | `pnpm dev` | `npx pm2 start ecosystem.config.cjs` |
 | **Hot reload** | Yes | No |
 | **Logging** | Console | PM2 logs |
 | **Performance** | Slower (live compilation) | Optimized |
@@ -197,7 +197,7 @@ pnpm dev
 
 **Manual start (Production):**
 ```bash
-npx pm2 start ecosystem.config.js
+npx pm2 start ecosystem.config.cjs
 npx pm2 logs
 ```
 
@@ -274,7 +274,7 @@ Edit `config.json` in `packages/gateway/`:
 pnpm dev
 
 # Production mode with PM2 (recommended)
-npx pm2 start ecosystem.config.js
+npx pm2 start ecosystem.config.cjs
 
 # View logs
 npx pm2 logs

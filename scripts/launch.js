@@ -54,7 +54,7 @@ async function main() {
 
     // Start PM2
     try {
-      execSync("npx pm2 start ecosystem.config.js", { stdio: "inherit", shell: true });
+      execSync("npx pm2 start ecosystem.config.cjs", { stdio: "inherit", shell: true });
       console.log("\nPM2 services started.");
       console.log("Tip: Access the dashboard at", DASHBOARD_URL);
 
