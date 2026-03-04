@@ -134,7 +134,7 @@ export default function MediaPage() {
     mimeType === "application/xml";
 
   const getPreviewContent = () => {
-    if (!previewData) return null;
+    if (!previewData || !selectedFile) return null;
 
     if (isImage(selectedFile.mimeType)) {
       return (

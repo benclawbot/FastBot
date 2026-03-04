@@ -417,7 +417,7 @@ async function main() {
 
     socket.on("setup:complete", async (data: {
       pin: string;
-      jwtSecret: string;
+      jwtSecret?: string;
       telegramToken?: string;
       llmProvider: string;
       llmModel: string;
@@ -427,7 +427,12 @@ async function main() {
       try {
         // Update config
         if (data.pin) config.security.pin = data.pin;
-        if (data.jwtSecret) config.security.jwtSecret = data.jwtSecret;
+        // Auto-generate JWT secret if not provided
+        if (!config.security.jwtSecret || config.security.jwtSecret === "auto-generated-secret-change-in-production") {
+          config.security.jwtSecret = generateJwtSecret();
+        } else if (data.jwtSecret) {
+          config.security.jwtSecret = data.jwtSecret;
+        }
         if (data.telegramToken) config.telegram.botToken = data.telegramToken;
         if (data.llmProvider) config.llm.primary.provider = data.llmProvider as any;
         if (data.llmModel) config.llm.primary.model = data.llmModel;
