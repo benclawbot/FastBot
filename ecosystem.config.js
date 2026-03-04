@@ -15,9 +15,8 @@ module.exports = {
     },
     {
       name: 'orchestration',
-      script: '-m',
-      args: 'scb_orchestration.server',
-      interpreter: 'none',
+      script: 'python3',
+      args: '-m scb_orchestration.server',
       cwd: './packages/orchestration',
       env: {
         PYTHONPATH: 'src'

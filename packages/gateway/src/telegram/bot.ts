@@ -170,6 +170,92 @@ export class TelegramBot {
         this.ctx.io.to(session.id).emit("chat:stream:end", { sessionId: session.id });
       }
     });
+
+    // Voice message handler
+    this.bot.on("message:voice", async (botCtx) => {
+      const userId = botCtx.from?.id;
+      if (!userId || !this.approval.isApproved(userId)) return;
+      if (this.approval.isBlocked(userId)) return;
+
+      const voice = botCtx.message.voice;
+      if (!voice) return;
+
+      // Rate limit check
+      const actorId = `tg:${userId}`;
+      if (!this.ctx.rateLimiter.consume(actorId)) {
+        await botCtx.reply("Rate limited. Please wait a moment.");
+        return;
+      }
+
+      try {
+        // Download the voice file
+        const file = await botCtx.api.getFile(voice.file_id);
+        const fileUrl = `https://api.telegram.org/file/bot${this.ctx.config.telegram.botToken}/${file.file_path}`;
+
+        // Fetch and convert to buffer
+        const response = await fetch(fileUrl);
+        const buffer = Buffer.from(await response.arrayBuffer());
+
+        // Transcribe using Whisper
+        const result = await this.transcribeAudio(buffer);
+        const text = result.text;
+
+        log.info({ userId, text }, "Voice transcribed from Telegram");
+
+        // Get or create shared session
+        const session = this.ctx.sessions.getOrCreate(actorId, "telegram");
+        this.ctx.sessions.addMessage(session.id, "user", text);
+
+        // Send typing indicator
+        await botCtx.replyWithChatAction("typing");
+
+        // Emit to Socket.io so dashboard sees it
+        this.ctx.io.to(session.id).emit("chat:message", {
+          sessionId: session.id,
+          role: "user",
+          content: text,
+          ts: Date.now(),
+          source: "telegram",
+        });
+
+        // Route to LLM
+        log.info({ userId, sessionId: session.id }, "Voice message received, routing to LLM");
+        this.ctx.io.to(session.id).emit("chat:stream:start", { sessionId: session.id });
+
+        const messages = session.messages.map((m) => ({
+          role: m.role as "user" | "assistant",
+          content: m.content,
+        }));
+
+        let fullResponse = "";
+        for await (const chunk of this.ctx.llmRouter.stream(messages, session.id, this.systemPrompt)) {
+          fullResponse += chunk;
+          this.ctx.io.to(session.id).emit("chat:stream:chunk", {
+            sessionId: session.id,
+            chunk,
+          });
+        }
+
+        this.ctx.sessions.addMessage(session.id, "assistant", fullResponse);
+        this.ctx.io.to(session.id).emit("chat:stream:end", { sessionId: session.id });
+
+        // Send response back to Telegram
+        await this.sendResponse(userId, fullResponse);
+      } catch (err) {
+        log.error({ err, userId }, "Failed to process voice message");
+        await this.sendResponse(userId, "Sorry, I couldn't process your voice message.");
+      }
+    });
+  }
+
+  /**
+   * Transcribe audio buffer using Whisper
+   */
+  private async transcribeAudio(buffer: Buffer): Promise<{ text: string }> {
+    // For now, we need to call the gateway's transcription
+    // Since we're in the bot, we can use the whisper module directly
+    const { transcribeBuffer } = await import("../voice/whisper.js");
+    return await transcribeBuffer(buffer, "ogg");
   }
 
   /**

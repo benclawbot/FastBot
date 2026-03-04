@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { createServer as createNetServer } from "node:net";
 import { mkdirSync, existsSync } from "node:fs";
 import { Server as SocketServer } from "socket.io";
 import { loadConfig, saveConfig } from "./config/loader.js";
@@ -22,6 +23,7 @@ import {
 } from "./orchestration/chat-integration.js";
 import { QmdStore } from "./qmd/store.js";
 import { transcribeBuffer } from "./voice/whisper.js";
+import { textToSpeech } from "./voice/tts.js";
 import { getBotSystemPrompt } from "./bot/context.js";
 import type { AppConfig } from "./config/schema.js";
 
@@ -54,6 +56,15 @@ async function main() {
 
   // Load config
   const config = loadConfig();
+
+  // Check if first-time setup is needed
+  const needsOnboarding = !config.llm?.primary?.apiKey || config.llm.primary.apiKey.startsWith("YOUR_");
+  if (needsOnboarding) {
+    log.warn("API key not configured - running in limited mode");
+    console.log("\n⚠️  SecureClaudebot needs configuration!\n");
+    console.log("Please configure your settings in config.json or run the setup wizard.\n");
+    console.log("Required: LLM provider API key (set in config.json)\n");
+  }
 
   // Initialize SQLite (pure JS/WASM, no native deps)
   const db = new SQLiteDB(config.memory.dbPath);
@@ -750,6 +761,39 @@ async function main() {
       }
     });
 
+    // ── Voice Synthesis (TTS) ──
+    socket.on("voice:speak", async (data: { text: string }) => {
+      try {
+        const voiceConfig = config.voice;
+        if (!voiceConfig?.provider || voiceConfig.provider === "system") {
+          socket.emit("voice:speech", { error: "TTS not configured" });
+          return;
+        }
+
+        const apiKey = voiceConfig.provider === "elevenlabs"
+          ? voiceConfig.elevenLabsApiKey
+          : config.llm.primary.apiKey;
+
+        if (!apiKey) {
+          socket.emit("voice:speech", { error: "API key not configured" });
+          return;
+        }
+
+        const result = await textToSpeech(data.text, apiKey, {
+          provider: voiceConfig.provider as "elevenlabs" | "openai" | "google" | "polly",
+          voice: voiceConfig.voiceId,
+        });
+
+        socket.emit("voice:speech", {
+          audio: result.audio.toString("base64"),
+          format: result.format,
+        });
+      } catch (err) {
+        log.error({ err }, "Voice synthesis failed");
+        socket.emit("voice:speech", { error: String(err) });
+      }
+    });
+
     // ── File Upload ──
     socket.on("file:upload", async (data: { filename: string; content: string; type: string }) => {
       try {
@@ -778,22 +822,53 @@ async function main() {
   });
 
   // Start listening
-  const { port, host } = config.server;
+  let { port, host } = config.server;
+
+  // Helper function to check if a port is available
+  async function isPortAvailable(port: number, host: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      const server = createNetServer();
+      server.once("error", () => resolve(false));
+      server.once("listening", () => {
+        server.close();
+        resolve(true);
+      });
+      server.listen(port, host);
+    });
+  }
+
+  // Find available port if the configured port is in use
+  const maxRetries = 10;
+  let actualPort = port;
+  for (let i = 0; i < maxRetries; i++) {
+    const tryPort = port + i;
+    if (await isPortAvailable(tryPort, host)) {
+      actualPort = tryPort;
+      if (tryPort !== port) {
+        log.warn({ requested: port, actual: tryPort }, "Port in use, using alternative port");
+      }
+      break;
+    }
+    if (i === maxRetries - 1) {
+      log.error({ port, attempts: maxRetries }, "No available ports found");
+      throw new Error(`Could not find available port after ${maxRetries} attempts`);
+    }
+  }
 
   // Simple HTTP endpoint for dashboard to discover gateway port
   httpServer.on("request", (req, res) => {
     if (req.url === "/.gateway-port" || req.url === "/api/port") {
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ port, host }));
+      res.end(JSON.stringify({ port: actualPort, host }));
     }
   });
 
-  httpServer.listen(port, host, () => {
-    log.info({ host, port }, "Gateway listening");
+  httpServer.listen(actualPort, host, () => {
+    log.info({ host, port: actualPort }, "Gateway listening");
     audit.log({
       event: "session.created",
       actor: "system",
-      detail: `Gateway started on ${host}:${port}`,
+      detail: `Gateway started on ${host}:${actualPort}`,
     });
   });
 

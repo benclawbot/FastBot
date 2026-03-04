@@ -4,22 +4,25 @@ Ultra-secure personal AI gateway inspired by OpenClaw. Runs on Android (Termux) 
 
 ## Features
 
-- **Telegram Bot** - Control your AI agent via Telegram
-- **Multi-Provider LLM Router** - OpenAI, Anthropic, Google, Ollama, MiniMax, and more
+- **Telegram Bot** - Control your AI agent via Telegram (text and voice)
+- **Multi-Provider LLM Router** - OpenAI, Anthropic, Google, Ollama, MiniMax, Groq, DeepSeek, and more
 - **Web Dashboard** - Next.js PWA for mission control
 - **Agents Management** - Create and manage AI agents with persistent memories
 - **Orchestration** - CrewAI Flows for multi-agent task delegation
 - **QMD Search** - Vector search across memories, chat history, and agent files
 - **RCA Scheduler** - Automated root cause analysis and lessons learned
-- **Sandboxed Browser** - Playwright-based web automation
+- **Sandboxed Browser** - Playwright-based web automation (included)
 - **Tailscale Integration** - Secure remote access
 - **OAuth Integration** - Google, Microsoft, GitHub authentication
 - **Audit Logging** - Full activity tracking
 - **Security Hardened** - SSRF blocking, path traversal prevention, rate limiting
-- **Voice Input** - Whisper transcription for voice notes
+- **Voice Input** - Whisper transcription for voice notes (Telegram & Dashboard)
+- **Voice Output** - TTS synthesis via ElevenLabs or OpenAI
 - **Command Autocomplete** - Type `/` in chat to see available commands
 - **File Attachments** - Paste images or attach files in chat
 - **Bot Identity** - Customizable personality via identity, role, and memories
+- **Port Auto-detection** - Automatically finds available port if configured port is in use
+- **PM2 Process Manager** - Production-ready process management
 
 ## Architecture
 
@@ -97,14 +100,27 @@ Edit `config.json` in the project root:
       "provider": "minimax",
       "model": "M2.5",
       "apiKey": "your_api_key"
-    }
+    },
+    "fallbacks": []
+  },
+  "voice": {
+    "provider": "elevenlabs",
+    "elevenLabsApiKey": "your_elevenlabs_key",
+    "voiceId": "rachel"
+  },
+  "security": {
+    "pin": "your_pin",
+    "dashboardRateLimit": 60,
+    "jwtSecret": "auto-generated"
   },
   "agents": {
     "directory": "data/agents",
-    "enableRcaCron": true
+    "enableRcaCron": true,
+    "rcaCronSchedule": "0 2 * * *"
   },
   "playwright": {
-    "enabled": true
+    "enabled": true,
+    "browser": "chromium"
   },
   "tailscale": {
     "enabled": true
@@ -112,17 +128,28 @@ Edit `config.json` in the project root:
 }
 ```
 
+**Port Auto-detection:** If the configured port is already in use, the gateway will automatically try the next 10 ports.
+
 ### Running
 
 ```bash
-# Start all packages (development)
+# Development mode
 pnpm dev
 
-# Or start individually:
-pnpm --filter @scb/gateway run dev    # Gateway: ws://localhost:18789
-pnpm --filter @scb/dashboard run dev  # Dashboard: http://localhost:3100
+# Production mode with PM2 (recommended)
+npx pm2 start ecosystem.config.js
 
-# For orchestration (separate terminal):
+# View logs
+npx pm2 logs
+
+# Restart services
+npx pm2 restart all
+```
+
+**Note:** Playwright/Chromium is automatically installed with `pnpm install`. No separate installation needed.
+
+**Orchestration** starts automatically with PM2. For manual start:
+```bash
 cd packages/orchestration
 pip install crewai pydantic sqlalchemy
 python -m src.scb_orchestration.server
@@ -140,9 +167,13 @@ The core gateway service.
 
 **Socket Events:**
 - `chat:message` - Send/receive chat messages
+- `chat:stream:start`, `chat:stream:chunk`, `chat:stream:end` - Streaming responses
+- `voice:transcribe` - Transcribe audio (base64 encoded)
+- `voice:speak` - Generate TTS audio
 - `orchestration:*` - Orchestration control
 - `qmd:search` - Vector search queries
 - `tailscale:status` - Tailscale status
+- `file:upload` - Upload files/images
 
 ### @scb/dashboard
 
@@ -223,6 +254,25 @@ The bot's identity is loaded as a system prompt, so the chatbot will:
 - Use the tools and capabilities listed in role.md
 - Reference memories when interacting
 
+## Voice Capabilities
+
+**Voice Input (Whisper):**
+- Send voice notes via Telegram - they will be transcribed and processed
+- Use the microphone button in the dashboard chat
+- Supports multiple audio formats (ogg, webm, mp3)
+
+**Voice Output (TTS):**
+- Configure in `config.json`:
+  ```json
+  "voice": {
+    "provider": "elevenlabs",  // or "openai"
+    "elevenLabsApiKey": "your_key",
+    "voiceId": "rachel"
+  }
+  ```
+- Use `voice:speak` socket event to generate speech
+- Supported voices: Rachel, Alloy, Nova, and more
+
 ## QMD Search
 
 Query Memory Data provides semantic search across:
@@ -292,16 +342,26 @@ If you get TypeScript errors about `document` in playwright:
 
 ### Port Conflicts
 
-If ports are already in use:
-- Gateway: Edit `config.json` server.port
-- Dashboard: Edit `config.json` server.dashboardPort
+If ports are already in use, the gateway will automatically find the next available port. Check the logs to see which port is being used.
 
 ### Database Issues
 
 Delete the database file and restart:
 ```bash
-rm packages/gateway/data/scb.db
+rm data/scb.db
+npx pm2 restart all
 ```
+
+### Telegram Bot Not Responding
+
+1. Check if Telegram is connected: `npx pm2 logs gateway | grep telegram`
+2. Ensure your user ID is in `approvedUsers` in config.json
+3. Restart the gateway: `npx pm2 restart gateway`
+
+### Voice Not Working
+
+1. Ensure faster-whisper is installed: `pip install faster-whisper`
+2. For TTS, configure ElevenLabs or OpenAI API key in config.json
 
 ### Tailscale
 
