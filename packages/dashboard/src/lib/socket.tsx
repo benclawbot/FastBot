@@ -13,7 +13,25 @@ import { io, type Socket } from "socket.io-client";
 // Discover gateway port dynamically
 async function discoverGatewayPort(): Promise<number> {
   const hostname = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-  const ports = [18789, 3100]; // Default port + dashboard port (for proxy)
+  const dashboardPort = typeof window !== "undefined" ? window.location.port : "3100";
+
+  // First try the dashboard's API endpoint (works in production too)
+  try {
+    const res = await fetch(`/api/gateway/port`, {
+      method: "GET",
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.port) {
+        return data.port;
+      }
+    }
+  } catch {
+    // Fall through to next method
+  }
+
+  // Fallback: try common ports
+  const ports = [18789, 3100];
 
   for (const port of ports) {
     try {
