@@ -642,7 +642,7 @@ async function main() {
     });
 
     // Start Google OAuth flow
-    socket.on("oauth:google:start", async () => {
+    socket.on("oauth:google:start", async (data?: { origin?: string }) => {
       const googleConfig = config.google;
       if (!googleConfig?.clientId || !googleConfig?.clientSecret) {
         socket.emit("oauth:error", { provider: "google", error: "Google OAuth not configured" });
@@ -650,7 +650,9 @@ async function main() {
       }
 
       try {
-        const redirectUri = `http://${getOAuthHost()}:${config.server.dashboardPort}/oauth/google/callback`;
+        // Use client-provided origin if available, otherwise fall back to publicHost
+        const baseUrl = data?.origin || `http://${getOAuthHost()}:${config.server.dashboardPort}`;
+        const redirectUri = `${baseUrl}/oauth/google/callback`;
         const client = new GoogleClient(googleConfig.clientId, googleConfig.clientSecret, redirectUri);
         const authUrl = client.getAuthUrl(redirectUri);
         socket.emit("oauth:google:url", { url: authUrl, redirectUri });
@@ -713,7 +715,7 @@ async function main() {
     });
 
     // Start Microsoft OAuth flow
-    socket.on("oauth:microsoft:start", async () => {
+    socket.on("oauth:microsoft:start", async (data?: { origin?: string }) => {
       const msConfig = config.microsoft;
       if (!msConfig?.clientId || !msConfig?.clientSecret) {
         socket.emit("oauth:error", { provider: "microsoft", error: "Microsoft OAuth not configured" });
@@ -721,7 +723,9 @@ async function main() {
       }
 
       try {
-        const redirectUri = `http://${getOAuthHost()}:${config.server.dashboardPort}/oauth/microsoft/callback`;
+        // Use client-provided origin if available, otherwise fall back to publicHost
+        const baseUrl = data?.origin || `http://${getOAuthHost()}:${config.server.dashboardPort}`;
+        const redirectUri = `${baseUrl}/oauth/microsoft/callback`;
         const client = new MicrosoftClient(
           msConfig.clientId,
           msConfig.clientSecret,
@@ -803,6 +807,7 @@ async function main() {
       }
 
       try {
+        // GitHub only allows one callback URL, so use publicHost
         const redirectUri = `http://${getOAuthHost()}:${config.server.dashboardPort}/oauth/github/callback`;
         const scopes = githubConfig.scopes?.join(" ") || "read:user repo gist";
         const authUrl = `https://github.com/login/oauth/authorize?client_id=${githubConfig.clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}`;

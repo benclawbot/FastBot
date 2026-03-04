@@ -644,7 +644,7 @@ export default function SettingsPage() {
               ) : (
                 <button
                   onClick={() => {
-                    socket?.emit("oauth:google:start");
+                    socket?.emit("oauth:google:start", { origin: window.location.origin });
                   }}
                   disabled={!connected}
                   className="px-4 py-2 bg-blue-500 hover:bg-blue-400 disabled:bg-white/10 disabled:text-white/30 text-black text-xs font-medium rounded-lg transition-colors"
@@ -678,7 +678,7 @@ export default function SettingsPage() {
               ) : (
                 <button
                   onClick={() => {
-                    socket?.emit("oauth:microsoft:start");
+                    socket?.emit("oauth:microsoft:start", { origin: window.location.origin });
                   }}
                   disabled={!connected}
                   className="px-4 py-2 bg-blue-500 hover:bg-blue-400 disabled:bg-white/10 disabled:text-white/30 text-black text-xs font-medium rounded-lg transition-colors"
@@ -707,7 +707,7 @@ export default function SettingsPage() {
               ) : (
                 <button
                   onClick={() => {
-                    socket?.emit("oauth:github:start");
+                    socket?.emit("oauth:github:start", { origin: window.location.origin });
                   }}
                   disabled={!connected}
                   className="px-4 py-2 bg-blue-500 hover:bg-blue-400 disabled:bg-white/10 disabled:text-white/30 text-black text-xs font-medium rounded-lg transition-colors"
