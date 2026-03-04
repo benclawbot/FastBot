@@ -89,10 +89,21 @@ export function listSkills(): InstalledSkill[] {
 
 /**
  * Extract skill name from SKILL.md content
+ * Prefers repository name, falls back to content title
  */
 function extractSkillName(id: string, content: string): string {
+  // First try to extract proper title from content
   const match = content.match(/^#\s+(.+)$/m);
-  return match ? match[1].trim() : id;
+  if (match) {
+    const title = match[1].trim();
+    // If the title is just "CLAUDE.md" or "SKILL.md", use the repo name instead
+    if (title.toLowerCase() === "claude.md" || title.toLowerCase() === "skill.md") {
+      return id;
+    }
+    return title;
+  }
+  // Fall back to repo/folder name
+  return id;
 }
 
 /**
