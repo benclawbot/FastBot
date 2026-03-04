@@ -239,7 +239,7 @@ async function textToSpeechGTTS(text: string, lang: string = "en", speed: number
       "-c",
       `
 from gtts import gTTS
-tts = gTTS(text=${JSON.stringify(text)}, lang=${JSON.stringify(lang)}, slow=${JSON.stringify(slow)})
+tts = gTTS(text=${JSON.stringify(text)}, lang=${JSON.stringify(lang)}, slow=${slow})
 tts.save(${JSON.stringify(outputPath)})
 `,
     ], {

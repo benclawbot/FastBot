@@ -20,7 +20,9 @@ export type AuditEvent =
   | "session.created"
   | "session.reaped"
   | "config.changed"
-  | "config.updated";
+  | "config.updated"
+  | "oauth.connected"
+  | "oauth.disconnected";
 
 export interface AuditEntry {
   event: AuditEvent;

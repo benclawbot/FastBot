@@ -22,8 +22,8 @@ export interface CalendarEvent {
 export class GoogleClient {
   private auth;
 
-  constructor(clientId: string, clientSecret: string, refreshToken?: string) {
-    this.auth = new google.auth.OAuth2(clientId, clientSecret);
+  constructor(clientId: string, clientSecret: string, redirectUri?: string, refreshToken?: string) {
+    this.auth = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
     if (refreshToken) {
       this.auth.setCredentials({ refresh_token: refreshToken });
     }
@@ -107,9 +107,10 @@ export class GoogleClient {
   /**
    * Get OAuth2 authorization URL for initial setup.
    */
-  getAuthUrl(): string {
+  getAuthUrl(redirectUri?: string): string {
     return this.auth.generateAuthUrl({
       access_type: "offline",
+      redirect_uri: redirectUri,
       scope: [
         "https://www.googleapis.com/auth/calendar",
         "https://www.googleapis.com/auth/drive.readonly",

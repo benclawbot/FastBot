@@ -28,6 +28,9 @@ import { textToSpeech } from "./voice/tts.js";
 import { getBotSystemPrompt } from "./bot/context.js";
 import { verifyToken, generateJwtSecret, issueToken } from "./security/jwt.js";
 import * as SkillsManager from "./skills/manager.js";
+import { GoogleClient } from "./integrations/google.js";
+import { MicrosoftClient } from "./integrations/microsoft.js";
+import { GitHubClient } from "./integrations/github.js";
 import type { AppConfig } from "./config/schema.js";
 
 const log = createChildLogger("gateway");
@@ -493,6 +496,26 @@ async function main() {
             approvedUsers: config.telegram.approvedUsers?.join(", ") || "",
           },
         });
+      } else if (data.section === "voice") {
+        socket.emit("settings:data", {
+          section: "voice",
+          data: {
+            voiceReplies: config.telegram.voiceReplies ?? true,
+            voiceProvider: config.telegram.voiceProvider ?? "gtts",
+            voiceId: config.telegram.voiceId ?? "en",
+            voiceSpeed: config.telegram.voiceSpeed ?? 1.0,
+          },
+        });
+      } else if (data.section === "playwright") {
+        socket.emit("settings:data", {
+          section: "playwright",
+          data: {
+            enabled: config.playwright?.enabled ?? false,
+            browser: config.playwright?.browser ?? "chromium",
+            headless: config.playwright?.headless ?? true,
+            timeoutMs: config.playwright?.timeoutMs ?? 30000,
+          },
+        });
       }
     });
 
@@ -621,15 +644,262 @@ async function main() {
     socket.on(
       "settings:change-pin",
       (data: { currentPin: string; newPin: string }) => {
-        log.info("PIN change requested via dashboard");
+        const storedPin = config.security.pin;
+
+        // Validate current PIN
+        if (data.currentPin !== storedPin) {
+          log.warn("PIN change failed: current PIN does not match");
+          socket.emit("settings:pin-changed", { success: false, error: "Current PIN is incorrect" });
+          return;
+        }
+
+        // Validate new PIN
+        if (!data.newPin || data.newPin.length < 4) {
+          socket.emit("settings:pin-changed", { success: false, error: "New PIN must be at least 4 characters" });
+          return;
+        }
+
+        // Save new PIN to config
+        config.security.pin = data.newPin;
+        saveConfig(config);
+
+        log.info("PIN changed successfully - restart required for new PIN to take effect");
         audit.log({
-          event: "auth.login",
+          event: "config.changed",
           actor: socket.id,
-          detail: "PIN change attempted via dashboard",
+          detail: "PIN changed via dashboard - restart required",
         });
-        socket.emit("settings:pin-changed", { success: true });
+
+        socket.emit("settings:pin-changed", { success: true, restartRequired: true });
       }
     );
+
+    // ── OAuth Integrations ──
+    // Request OAuth connection status
+    socket.on("oauth:status", () => {
+      const status = {
+        google: keyStore.has("oauth_google_refresh_token"),
+        microsoft: keyStore.has("oauth_microsoft_refresh_token"),
+        github: keyStore.has("oauth_github_token"),
+      };
+      socket.emit("oauth:status", status);
+    });
+
+    // Start Google OAuth flow
+    socket.on("oauth:google:start", async () => {
+      const googleConfig = config.google;
+      if (!googleConfig?.clientId || !googleConfig?.clientSecret) {
+        socket.emit("oauth:error", { provider: "google", error: "Google OAuth not configured" });
+        return;
+      }
+
+      try {
+        const redirectUri = `http://${config.server.host}:${config.server.dashboardPort}/oauth/google/callback`;
+        const client = new GoogleClient(googleConfig.clientId, googleConfig.clientSecret, redirectUri);
+        const authUrl = client.getAuthUrl(redirectUri);
+        socket.emit("oauth:google:url", { url: authUrl, redirectUri });
+        log.info({ redirectUri }, "Google OAuth flow initiated");
+      } catch (err) {
+        log.error({ err }, "Failed to generate Google auth URL");
+        socket.emit("oauth:error", { provider: "google", error: "Failed to initiate OAuth flow" });
+      }
+    });
+
+    // Handle Google OAuth callback
+    socket.on("oauth:google:callback", async (data: { code: string; redirectUri?: string }) => {
+      const googleConfig = config.google;
+      if (!googleConfig?.clientId || !googleConfig?.clientSecret) {
+        socket.emit("oauth:error", { provider: "google", error: "Google OAuth not configured" });
+        return;
+      }
+
+      try {
+        const redirectUri = data.redirectUri || `http://${config.server.host}:${config.server.dashboardPort}/oauth/google/callback`;
+        const client = new GoogleClient(googleConfig.clientId, googleConfig.clientSecret, redirectUri);
+        const refreshToken = await client.exchangeCode(data.code);
+
+        if (refreshToken) {
+          // Store refresh token encrypted
+          keyStore.set("oauth_google_refresh_token", refreshToken);
+          audit.log({
+            event: "oauth.connected",
+            actor: "google",
+            detail: "Google OAuth connected via dashboard",
+          });
+          socket.emit("oauth:connected", { provider: "google", success: true });
+          log.info("Google OAuth connected successfully");
+        }
+      } catch (err) {
+        log.error({ err }, "Google OAuth callback failed");
+        socket.emit("oauth:error", { provider: "google", error: "Failed to complete OAuth flow" });
+      }
+    });
+
+    // Disconnect Google
+    socket.on("oauth:google:disconnect", () => {
+      keyStore.delete("oauth_google_refresh_token");
+      audit.log({
+        event: "oauth.disconnected",
+        actor: "google",
+        detail: "Google OAuth disconnected via dashboard",
+      });
+      socket.emit("oauth:disconnected", { provider: "google" });
+      log.info("Google OAuth disconnected");
+    });
+
+    // Start Microsoft OAuth flow
+    socket.on("oauth:microsoft:start", async () => {
+      const msConfig = config.microsoft;
+      if (!msConfig?.clientId || !msConfig?.clientSecret) {
+        socket.emit("oauth:error", { provider: "microsoft", error: "Microsoft OAuth not configured" });
+        return;
+      }
+
+      try {
+        const redirectUri = `http://${config.server.host}:${config.server.dashboardPort}/oauth/microsoft/callback`;
+        const client = new MicrosoftClient(
+          msConfig.clientId,
+          msConfig.clientSecret,
+          msConfig.tenantId || "common",
+          redirectUri
+        );
+        const state = crypto.randomUUID();
+        const authUrl = client.getAuthUrl(state);
+        socket.emit("oauth:microsoft:url", { url: authUrl, state, redirectUri });
+        log.info({ redirectUri }, "Microsoft OAuth flow initiated");
+      } catch (err) {
+        log.error({ err }, "Failed to generate Microsoft auth URL");
+        socket.emit("oauth:error", { provider: "microsoft", error: "Failed to initiate OAuth flow" });
+      }
+    });
+
+    // Handle Microsoft OAuth callback
+    socket.on("oauth:microsoft:callback", async (data: { code: string; redirectUri?: string }) => {
+      const msConfig = config.microsoft;
+      if (!msConfig?.clientId || !msConfig?.clientSecret) {
+        socket.emit("oauth:error", { provider: "microsoft", error: "Microsoft OAuth not configured" });
+        return;
+      }
+
+      try {
+        const redirectUri = data.redirectUri || `http://${config.server.host}:${config.server.dashboardPort}/oauth/microsoft/callback`;
+        const client = new MicrosoftClient(
+          msConfig.clientId,
+          msConfig.clientSecret,
+          msConfig.tenantId || "common",
+          redirectUri
+        );
+        const tokens = await client.exchangeCode(data.code);
+
+        if (tokens.refreshToken) {
+          // Store refresh token encrypted
+          keyStore.set("oauth_microsoft_refresh_token", tokens.refreshToken);
+          audit.log({
+            event: "oauth.connected",
+            actor: "microsoft",
+            detail: "Microsoft OAuth connected via dashboard",
+          });
+          socket.emit("oauth:connected", { provider: "microsoft", success: true });
+          log.info("Microsoft OAuth connected successfully");
+        }
+      } catch (err) {
+        log.error({ err }, "Microsoft OAuth callback failed");
+        socket.emit("oauth:error", { provider: "microsoft", error: "Failed to complete OAuth flow" });
+      }
+    });
+
+    // Disconnect Microsoft
+    socket.on("oauth:microsoft:disconnect", () => {
+      keyStore.delete("oauth_microsoft_refresh_token");
+      audit.log({
+        event: "oauth.disconnected",
+        actor: "microsoft",
+        detail: "Microsoft OAuth disconnected via dashboard",
+      });
+      socket.emit("oauth:disconnected", { provider: "microsoft" });
+      log.info("Microsoft OAuth disconnected");
+    });
+
+    // Start GitHub OAuth flow
+    socket.on("oauth:github:start", async () => {
+      const githubConfig = config.github;
+      if (!githubConfig?.clientId || !githubConfig?.clientSecret) {
+        socket.emit("oauth:error", { provider: "github", error: "GitHub OAuth not configured" });
+        return;
+      }
+
+      try {
+        const redirectUri = `http://${config.server.host}:${config.server.dashboardPort}/oauth/github/callback`;
+        const scopes = githubConfig.scopes?.join(" ") || "read:user repo gist";
+        const authUrl = `https://github.com/login/oauth/authorize?client_id=${githubConfig.clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}`;
+        socket.emit("oauth:github:url", { url: authUrl, redirectUri });
+        log.info({ redirectUri }, "GitHub OAuth flow initiated");
+      } catch (err) {
+        log.error({ err }, "Failed to generate GitHub auth URL");
+        socket.emit("oauth:error", { provider: "github", error: "Failed to initiate OAuth flow" });
+      }
+    });
+
+    // Handle GitHub OAuth callback
+    socket.on("oauth:github:callback", async (data: { code: string; redirectUri?: string }) => {
+      const githubConfig = config.github;
+      if (!githubConfig?.clientId || !githubConfig?.clientSecret) {
+        socket.emit("oauth:error", { provider: "github", error: "GitHub OAuth not configured" });
+        return;
+      }
+
+      try {
+        // Exchange code for access token via GitHub API
+        const params = new URLSearchParams({
+          client_id: githubConfig.clientId,
+          client_secret: githubConfig.clientSecret,
+          code: data.code,
+        });
+
+        const response = await fetch(
+          `https://github.com/login/oauth/access_token?${params}`,
+          {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`GitHub token exchange failed: ${response.status}`);
+        }
+
+        const tokenData = (await response.json()) as { access_token?: string };
+
+        if (tokenData.access_token) {
+          // Store token encrypted
+          keyStore.set("oauth_github_token", tokenData.access_token);
+          audit.log({
+            event: "oauth.connected",
+            actor: "github",
+            detail: "GitHub OAuth connected via dashboard",
+          });
+          socket.emit("oauth:connected", { provider: "github", success: true });
+          log.info("GitHub OAuth connected successfully");
+        }
+      } catch (err) {
+        log.error({ err }, "GitHub OAuth callback failed");
+        socket.emit("oauth:error", { provider: "github", error: "Failed to complete OAuth flow" });
+      }
+    });
+
+    // Disconnect GitHub
+    socket.on("oauth:github:disconnect", () => {
+      keyStore.delete("oauth_github_token");
+      audit.log({
+        event: "oauth.disconnected",
+        actor: "github",
+        detail: "GitHub OAuth disconnected via dashboard",
+      });
+      socket.emit("oauth:disconnected", { provider: "github" });
+      log.info("GitHub OAuth disconnected");
+    });
 
     // ── Session Management ──
     socket.on("sessions:clear-all", () => {

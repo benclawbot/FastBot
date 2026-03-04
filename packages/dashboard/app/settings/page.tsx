@@ -107,12 +107,25 @@ export default function SettingsPage() {
         if (tgData.approvedUsers) {
           setApprovedUsers(tgData.approvedUsers);
         }
+      } else if (data.section === "voice") {
+        const voiceData = data.data as Record<string, unknown>;
+        if (!voiceSettingsLoadingRef.current) {
+          if (typeof voiceData.voiceReplies === "boolean") setVoiceEnabled(voiceData.voiceReplies);
+          if (voiceData.voiceProvider) setVoiceProvider(voiceData.voiceProvider as string);
+          if (voiceData.voiceId) setVoiceId(voiceData.voiceId as string);
+          if (typeof voiceData.voiceSpeed === "number") setVoiceSpeed(voiceData.voiceSpeed);
+        }
+      } else if (data.section === "playwright") {
+        const pwData = data.data as Record<string, unknown>;
+        if (typeof pwData.enabled === "boolean") setPlaywrightEnabled(pwData.enabled);
       }
     });
 
     // Request initial settings when connected
     socket.emit("settings:request", { section: "llm" });
     socket.emit("settings:request", { section: "telegram" });
+    socket.emit("settings:request", { section: "voice" });
+    socket.emit("settings:request", { section: "playwright" });
 
     // Tailscale status
     socket.on("tailscale:status", (data: { enabled: boolean; connected: boolean; ip?: string }) => {
@@ -164,6 +177,71 @@ export default function SettingsPage() {
     // Request initial voice status
     socket.emit("voice:status:request");
 
+    // PIN change response
+    socket.on("settings:pin-changed", (data: { success: boolean; error?: string; restartRequired?: boolean }) => {
+      if (data.success) {
+        if (data.restartRequired) {
+          alert("PIN changed successfully. Please restart the gateway for the new PIN to take effect.");
+        } else {
+          showSaved("pin");
+        }
+      } else {
+        alert(data.error || "Failed to change PIN");
+      }
+      setCurrentPin("");
+      setNewPin("");
+      setConfirmPin("");
+    });
+
+    // OAuth status
+    socket.on("oauth:status", (data: { google: boolean; microsoft: boolean; github: boolean }) => {
+      setGoogleConnected(data.google);
+      setMicrosoftConnected(data.microsoft);
+      setGithubConnected(data.github);
+    });
+
+    socket.on("oauth:connected", (data: { provider: string; success: boolean }) => {
+      if (data.provider === "google") setGoogleConnected(true);
+      if (data.provider === "microsoft") setMicrosoftConnected(true);
+      if (data.provider === "github") setGithubConnected(true);
+    });
+
+    socket.on("oauth:disconnected", (data: { provider: string }) => {
+      if (data.provider === "google") setGoogleConnected(false);
+      if (data.provider === "microsoft") setMicrosoftConnected(false);
+      if (data.provider === "github") setGithubConnected(false);
+    });
+
+    socket.on("oauth:error", (data: { provider: string; error: string }) => {
+      alert(`${data.provider} OAuth error: ${data.error}`);
+    });
+
+    socket.on("oauth:google:url", (data: { url: string; redirectUri?: string }) => {
+      // Store redirect URI for callback
+      if (data.redirectUri) {
+        sessionStorage.setItem("oauth_redirect_uri", data.redirectUri);
+      }
+      // Open OAuth URL in new window/tab
+      window.open(data.url, "_blank", "width=600,height=700");
+    });
+
+    socket.on("oauth:microsoft:url", (data: { url: string; redirectUri?: string }) => {
+      if (data.redirectUri) {
+        sessionStorage.setItem("oauth_redirect_uri", data.redirectUri);
+      }
+      window.open(data.url, "_blank", "width=600,height=700");
+    });
+
+    socket.on("oauth:github:url", (data: { url: string; redirectUri?: string }) => {
+      if (data.redirectUri) {
+        sessionStorage.setItem("oauth_redirect_uri", data.redirectUri);
+      }
+      window.open(data.url, "_blank", "width=600,height=700");
+    });
+
+    // Request initial OAuth status
+    socket.emit("oauth:status");
+
     return () => {
       socket.off("settings:saved");
       socket.off("settings:data");
@@ -172,6 +250,14 @@ export default function SettingsPage() {
       socket.off("tailscale:disconnected");
       socket.off("voice:status");
       socket.off("voice:test:result");
+      socket.off("settings:pin-changed");
+      socket.off("oauth:status");
+      socket.off("oauth:connected");
+      socket.off("oauth:disconnected");
+      socket.off("oauth:error");
+      socket.off("oauth:google:url");
+      socket.off("oauth:microsoft:url");
+      socket.off("oauth:github:url");
     };
   }, [socket, connected]);
 
@@ -223,10 +309,6 @@ export default function SettingsPage() {
       currentPin,
       newPin,
     });
-    setCurrentPin("");
-    setNewPin("");
-    setConfirmPin("");
-    showSaved("pin");
   };
 
   return (
@@ -591,7 +673,9 @@ export default function SettingsPage() {
               </div>
               {googleConnected ? (
                 <button
-                  onClick={() => setGoogleConnected(false)}
+                  onClick={() => {
+                    socket?.emit("oauth:google:disconnect");
+                  }}
                   className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 text-xs font-medium rounded-lg transition-colors flex items-center gap-2"
                 >
                   <Unlink size={14} /> Disconnect
@@ -599,8 +683,7 @@ export default function SettingsPage() {
               ) : (
                 <button
                   onClick={() => {
-                    // TODO: Implement Google OAuth flow
-                    setGoogleConnected(true);
+                    socket?.emit("oauth:google:start");
                   }}
                   disabled={!connected}
                   className="px-4 py-2 bg-blue-500 hover:bg-blue-400 disabled:bg-white/10 disabled:text-white/30 text-black text-xs font-medium rounded-lg transition-colors"
@@ -624,7 +707,9 @@ export default function SettingsPage() {
               </div>
               {microsoftConnected ? (
                 <button
-                  onClick={() => setMicrosoftConnected(false)}
+                  onClick={() => {
+                    socket?.emit("oauth:microsoft:disconnect");
+                  }}
                   className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 text-xs font-medium rounded-lg transition-colors flex items-center gap-2"
                 >
                   <Unlink size={14} /> Disconnect
@@ -632,8 +717,7 @@ export default function SettingsPage() {
               ) : (
                 <button
                   onClick={() => {
-                    // TODO: Implement Microsoft OAuth flow
-                    setMicrosoftConnected(true);
+                    socket?.emit("oauth:microsoft:start");
                   }}
                   disabled={!connected}
                   className="px-4 py-2 bg-blue-500 hover:bg-blue-400 disabled:bg-white/10 disabled:text-white/30 text-black text-xs font-medium rounded-lg transition-colors"
@@ -652,7 +736,9 @@ export default function SettingsPage() {
               </div>
               {githubConnected ? (
                 <button
-                  onClick={() => setGithubConnected(false)}
+                  onClick={() => {
+                    socket?.emit("oauth:github:disconnect");
+                  }}
                   className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 text-xs font-medium rounded-lg transition-colors flex items-center gap-2"
                 >
                   <Unlink size={14} /> Disconnect
@@ -660,11 +746,7 @@ export default function SettingsPage() {
               ) : (
                 <button
                   onClick={() => {
-                    // Use existing GitHub config from settings
-                    if (connected) {
-                      socket?.emit("settings:request", { section: "github" });
-                    }
-                    setGithubConnected(true);
+                    socket?.emit("oauth:github:start");
                   }}
                   disabled={!connected}
                   className="px-4 py-2 bg-blue-500 hover:bg-blue-400 disabled:bg-white/10 disabled:text-white/30 text-black text-xs font-medium rounded-lg transition-colors"
