@@ -26,6 +26,7 @@ import { MediaHandler } from "./media/handler.js";
 import { transcribeBuffer } from "./voice/whisper.js";
 import { textToSpeech } from "./voice/tts.js";
 import { getBotSystemPrompt } from "./bot/context.js";
+import { verifyToken, generateJwtSecret, issueToken } from "./security/jwt.js";
 import type { AppConfig } from "./config/schema.js";
 
 const log = createChildLogger("gateway");
@@ -188,9 +189,86 @@ async function main() {
   const mediaHandler = new MediaHandler();
   ctx.media = mediaHandler;
 
-  // Socket.io connection handler
+  // JWT secret for authentication
+  let jwtSecret = config.security.jwtSecret;
+  if (!jwtSecret) {
+    jwtSecret = generateJwtSecret();
+    config.security.jwtSecret = jwtSecret;
+    saveConfig(config);
+    log.info("Generated new JWT secret and saved to config");
+  }
+
+  // Events that don't require authentication
+  const publicEvents = new Set(["auth:login", "setup:check"]);
+
+  // Socket.io connection handler with JWT authentication
+  io.use((socket, next) => {
+    const token = socket.handshake.auth.token || socket.handshake.query.token as string;
+
+    // Allow unauthenticated connections (for login)
+    // But mark them as unauthenticated
+    if (!token) {
+      (socket as any).authenticated = false;
+      (socket as any).user = null;
+      return next();
+    }
+
+    const payload = verifyToken(token, jwtSecret);
+    if (!payload) {
+      log.warn({ socketId: socket.id }, "Socket connection rejected: invalid token");
+      return next(new Error("Authentication required: invalid token"));
+    }
+
+    // Mark as authenticated and store user info
+    (socket as any).authenticated = true;
+    (socket as any).user = payload;
+    log.info({ socketId: socket.id, actor: payload.sub }, "Socket authenticated");
+    next();
+  });
+
+  // Helper to check if socket is authenticated
+  const isAuthenticated = (socket: any): boolean => {
+    return socket.authenticated === true;
+  };
+
   io.on("connection", (socket) => {
-    log.info({ socketId: socket.id }, "Client connected");
+    const user = (socket as any).user;
+    log.info({ socketId: socket.id, actor: user?.sub }, "Client connected");
+
+    // ── Authentication ──
+    socket.on("auth:login", async (data: { pin: string }) => {
+      // Verify PIN
+      const storedPin = config.security.pin;
+      if (!storedPin) {
+        socket.emit("auth:error", { error: "No PIN configured. Complete setup first." });
+        return;
+      }
+
+      if (data.pin !== storedPin) {
+        log.warn({ socketId: socket.id }, "Failed PIN login attempt");
+        audit.log({
+          event: "auth.login_failed",
+          actor: socket.id,
+          detail: "Invalid PIN via dashboard",
+        });
+        socket.emit("auth:error", { error: "Invalid PIN" });
+        return;
+      }
+
+      // PIN correct - issue JWT token
+      const token = issueToken("dashboard_user", jwtSecret!, "web");
+      (socket as any).authenticated = true;
+      (socket as any).user = { sub: "dashboard_user", origin: "web" };
+
+      log.info({ socketId: socket.id }, "User authenticated via PIN");
+      audit.log({
+        event: "auth.login",
+        actor: "dashboard_user",
+        detail: "Dashboard login successful",
+      });
+
+      socket.emit("auth:success", { token });
+    });
 
     // ── Chat ──
     socket.on("chat:message", async (data: { actorId: string; content: string }) => {

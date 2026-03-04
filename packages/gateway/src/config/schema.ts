@@ -57,12 +57,14 @@ export const securityConfigSchema = z.object({
 });
 
 export const serverConfigSchema = z.object({
-  /** Gateway WebSocket port */
+  /** Gateway WebSocket port (used if randomizePort is false) */
   port: z.number().default(18789),
   /** Dashboard Next.js port */
   dashboardPort: z.number().default(3100),
   /** Hostname to bind to */
   host: z.string().default("127.0.0.1"),
+  /** Randomize port on each startup (recommended for security) */
+  randomizePort: z.boolean().default(true),
 });
 
 export const memoryConfigSchema = z.object({
@@ -189,11 +191,11 @@ export const agentsConfigSchema = z
   .optional();
 
 export const appConfigSchema = z.object({
-  server: serverConfigSchema.default({}),
-  telegram: telegramConfigSchema,
-  llm: llmConfigSchema,
-  security: securityConfigSchema.default({}),
-  memory: memoryConfigSchema.default({}),
+  server: serverConfigSchema.optional(),
+  telegram: telegramConfigSchema.optional(),
+  llm: llmConfigSchema.optional(),
+  security: securityConfigSchema.optional(),
+  memory: memoryConfigSchema.optional(),
   google: googleConfigSchema,
   microsoft: microsoftConfigSchema,
   github: githubConfigSchema,
@@ -202,7 +204,21 @@ export const appConfigSchema = z.object({
   tailscale: tailscaleConfigSchema,
   agents: agentsConfigSchema,
   orchestration: orchestrationConfigSchema,
-});
+}).transform((val) => ({
+  server: serverConfigSchema.parse(val.server ?? {}),
+  telegram: telegramConfigSchema.parse(val.telegram ?? {}),
+  llm: llmConfigSchema.parse(val.llm ?? {}),
+  security: securityConfigSchema.parse(val.security ?? {}),
+  memory: memoryConfigSchema.parse(val.memory ?? {}),
+  google: val.google,
+  microsoft: val.microsoft,
+  github: val.github,
+  voice: val.voice,
+  playwright: val.playwright,
+  tailscale: val.tailscale,
+  agents: val.agents,
+  orchestration: val.orchestration,
+}));
 
 export type AppConfig = z.infer<typeof appConfigSchema>;
 export type TelegramConfig = z.infer<typeof telegramConfigSchema>;

@@ -34,21 +34,57 @@ async function discoverGatewayPort(): Promise<number> {
 interface SocketContextValue {
   socket: Socket | null;
   connected: boolean;
+  authenticated: boolean;
+  login: (pin: string) => Promise<boolean>;
 }
 
 const SocketContext = createContext<SocketContextValue>({
   socket: null,
   connected: false,
+  authenticated: false,
+  login: async () => false,
 });
 
 export function SocketProvider({ children }: { children: ReactNode }) {
   const [connected, setConnected] = useState(false);
+  const [authenticated, setAuthenticated] = useState(false);
   const [socket, setSocket] = useState<Socket | null>(null);
+  const socketRef = useRef<Socket | null>(null);
+
+  // Get stored token
+  const getStoredToken = (): string | null => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("gateway_token");
+  };
+
+  // Store token
+  const storeToken = (token: string) => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("gateway_token", token);
+  };
+
+  // Login function
+  const login = async (pin: string): Promise<boolean> => {
+    if (!socketRef.current) return false;
+
+    return new Promise((resolve) => {
+      socketRef.current!.emit("auth:login", { pin }, (response: { token?: string; error?: string }) => {
+        if (response.token) {
+          storeToken(response.token);
+          setAuthenticated(true);
+          resolve(true);
+        } else {
+          resolve(false);
+        }
+      });
+    });
+  };
 
   useEffect(() => {
     discoverGatewayPort().then((port) => {
       const hostname = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
       const url = `http://${hostname}:${port}`;
+      const token = getStoredToken();
 
       const s = io(url, {
         transports: ["websocket", "polling"],
@@ -56,16 +92,32 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         reconnectionAttempts: Infinity,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 10000,
+        auth: token ? { token } : undefined,
       });
 
-      s.on("connect", () => setConnected(true));
-      s.on("disconnect", () => setConnected(false));
+      s.on("connect", () => {
+        setConnected(true);
+        // Check if authenticated by trying auth:login with empty PIN
+        // If we have a stored token, we assume we're authenticated
+        if (token) {
+          setAuthenticated(true);
+        }
+      });
+      s.on("disconnect", () => {
+        setConnected(false);
+        setAuthenticated(false);
+      });
+      s.on("auth:error", () => {
+        setAuthenticated(false);
+        localStorage.removeItem("gateway_token");
+      });
       setSocket(s);
+      socketRef.current = s;
     });
   }, []);
 
   return (
-    <SocketContext.Provider value={{ socket, connected }}>
+    <SocketContext.Provider value={{ socket, connected, authenticated, login }}>
       {children}
     </SocketContext.Provider>
   );

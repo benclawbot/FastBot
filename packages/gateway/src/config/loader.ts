@@ -35,30 +35,34 @@ export function loadConfig(
   configPath: string = DEFAULT_CONFIG_PATH
 ): AppConfig {
   let raw: Record<string, unknown> = {};
+  let needsRandomPort = false;
 
   if (existsSync(configPath)) {
     log.info({ path: configPath }, "Loading config from file");
     const content = readFileSync(configPath, "utf-8");
     raw = JSON.parse(content) as Record<string, unknown>;
+
+    // Check if port should be randomized
+    const serverConfig = raw.server as Record<string, unknown> | undefined;
+    if (serverConfig?.randomizePort === true) {
+      needsRandomPort = true;
+    }
   } else {
     log.warn({ path: configPath }, "Config file not found, generating new config with random port");
     // Generate random port on first start
-    raw = {
-      server: { port: randomPort(), host: "127.0.0.1" },
-      telegram: { botToken: "", approvedUsers: [] },
-      llm: {
-        primary: { provider: "anthropic", model: "" },
-        fallbacks: [],
-      },
-      security: { pin: "", shellAllowedPaths: ["."], binaryAllowlist: ["git", "node", "npm", "pnpm"] },
-      memory: { dbPath: "data/scb.db" },
-    };
-    // Save the generated config
-    saveConfig(raw as unknown as AppConfig, configPath);
+    needsRandomPort = true;
   }
 
-  // Environment variable overrides (highest priority)
+  // Apply environment overrides first
   applyEnvOverrides(raw);
+
+  // If randomizePort is enabled, generate a new random port
+  if (needsRandomPort) {
+    (raw as any).server ??= {};
+    (raw as any).server.port = randomPort();
+    (raw as any).server.randomizePort = true;
+    log.info({ port: (raw as any).server.port }, "Generated random port");
+  }
 
   const result = appConfigSchema.safeParse(raw);
   if (!result.success) {
@@ -72,6 +76,11 @@ export function loadConfig(
 
   // Save port to file for dashboard to discover
   saveGatewayPort(result.data.server.port);
+
+  // Save config if port was randomized (to persist the new port)
+  if (needsRandomPort) {
+    saveConfig(result.data, configPath);
+  }
 
   return result.data;
 }

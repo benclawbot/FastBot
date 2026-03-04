@@ -65,11 +65,11 @@ export async function parseLink(url: string): Promise<ParsedLink> {
     };
   }
 
-  const content = article.textContent.trim();
+  const content = article.textContent?.trim() ?? "";
 
   return {
     url,
-    title: article.title,
+    title: article.title ?? url,
     content,
     excerpt: article.excerpt ?? content.slice(0, 200),
     siteName: article.siteName ?? undefined,
