@@ -3,7 +3,7 @@
  */
 import { spawn } from "node:child_process";
 import { createChildLogger } from "../logger/index.js";
-import { mkdtempSync, writeFileSync, unlinkSync } from "node:fs";
+import { mkdtempSync, writeFileSync, unlinkSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const log = createChildLogger("tts");
@@ -133,14 +133,13 @@ async function textToSpeechCoqui(
 
     let stderr = "";
 
-    process.stderr?.on("data", (data) => {
+    process.stderr?.on("data", (data: Buffer) => {
       stderr += data.toString();
     });
 
-    process.on("close", (code) => {
+    process.on("close", (code: number) => {
       if (code === 0) {
         try {
-          const { readFileSync } = require("node:fs");
           const audio = readFileSync(outputPath);
           unlinkSync(outputPath);
           resolve({ audio, format: "wav" });
@@ -153,7 +152,7 @@ async function textToSpeechCoqui(
       }
     });
 
-    process.on("error", (err) => {
+    process.on("error", (err: Error) => {
       log.error({ err }, "Failed to start Coqui TTS");
       reject(err);
     });
@@ -172,7 +171,6 @@ async function textToSpeechPiper(
     const tempDir = mkdtempSync("/tmp/tts-");
     const outputPath = join(tempDir, "output.wav");
 
-    // Simple text file for piper input
     const inputPath = join(tempDir, "input.txt");
     writeFileSync(inputPath, text);
 
@@ -186,18 +184,17 @@ async function textToSpeechPiper(
 
     let stderr = "";
 
-    process.stderr?.on("data", (data) => {
+    process.stderr?.on("data", (data: Buffer) => {
       stderr += data.toString();
     });
 
-    process.on("close", (code) => {
+    process.on("close", (code: number) => {
       try {
         unlinkSync(inputPath);
       } catch {}
 
       if (code === 0) {
         try {
-          const { readFileSync } = require("node:fs");
           const audio = readFileSync(outputPath);
           unlinkSync(outputPath);
           resolve({ audio, format: "wav" });
@@ -210,7 +207,7 @@ async function textToSpeechPiper(
       }
     });
 
-    process.on("error", (err) => {
+    process.on("error", (err: Error) => {
       log.error({ err }, "Failed to start Piper TTS");
       reject(err);
     });
@@ -221,7 +218,6 @@ async function textToSpeechPiper(
  * Google Cloud TTS (using basic auth)
  */
 async function textToSpeechGoogle(text: string, _apiKey: string): Promise<TtsResult> {
-  // Google Cloud TTS requires service account - simplified for now
   log.warn("Google TTS not fully implemented - requires service account");
   throw new Error("Google TTS requires service account setup");
 }
@@ -231,7 +227,6 @@ async function textToSpeechGoogle(text: string, _apiKey: string): Promise<TtsRes
  */
 async function textToSpeechGTTS(text: string, lang: string = "en"): Promise<TtsResult> {
   return new Promise((resolve, reject) => {
-    const { spawn } = require("node:child_process");
     const tempDir = mkdtempSync("/tmp/tts-");
     const outputPath = join(tempDir, "output.mp3");
 
@@ -251,7 +246,6 @@ tts.save(${JSON.stringify(outputPath)})
     process.on("close", (code: number) => {
       if (code === 0) {
         try {
-          const { readFileSync } = require("node:fs");
           const audio = readFileSync(outputPath);
           unlinkSync(outputPath);
           resolve({ audio, format: "mp3" });
@@ -274,7 +268,6 @@ tts.save(${JSON.stringify(outputPath)})
  * AWS Polly TTS
  */
 async function textToSpeechPolly(text: string, _apiKey: string): Promise<TtsResult> {
-  // AWS Polly requires AWS SDK - simplified for now
   log.warn("AWS Polly TTS not fully implemented");
   throw new Error("AWS Polly TTS requires AWS credentials");
 }
@@ -295,20 +288,16 @@ export async function getVoices(provider: string, apiKey: string): Promise<strin
       return data.voices.map((v) => v.name || v.voice_id);
     }
     case "openai":
-      // OpenAI uses fixed voices
       return ["alloy", "echo", "fable", "onyx", "nova", "shimmer"];
     case "coqui":
-      // Popular Coqui models
       return [
         "tts_models/en/ljspeech/glow-tts",
         "tts_models/en/ljspeech/fast_pitch",
         "tts_models/multilingual/multi-dataset/xtts_v2",
       ];
     case "piper":
-      // Piper English voices (need to be downloaded separately)
       return ["en_US-lessac-medium", "en_US-lessac-medium.onnx"];
     case "gtts":
-      // gTTS languages
       return ["en", "en-us", "fr", "de", "es", "it", "ja", "ko", "pt", "ru"];
     default:
       return [];
