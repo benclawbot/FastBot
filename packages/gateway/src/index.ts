@@ -928,6 +928,22 @@ async function main() {
       }
     });
 
+    // Resume task - trigger agent to work on a task in "In Progress"
+    socket.on("orchestration:resume-task", async (data: { task_id: string }) => {
+      try {
+        // Trigger the orchestration to resume work - it will find the task
+        const response = await fetch("http://127.0.0.1:18790/task/resume", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ task_id: data.task_id, request: "Continue working on this task" }),
+        });
+        const result = await response.json();
+        socket.emit("orchestration:resumed", result);
+      } catch (err) {
+        socket.emit("orchestration:error", { error: String(err) });
+      }
+    });
+
     // ── Workflows ──
     socket.on("workflows:list", async () => {
       try {

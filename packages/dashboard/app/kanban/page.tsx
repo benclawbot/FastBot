@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, DragEvent } from "react";
 import { useSocket } from "@/lib/socket";
-import { Play, Plus, RefreshCw, Check, X, Clock, AlertCircle } from "lucide-react";
+import { Play, Plus, RefreshCw, Check, X, Clock, AlertCircle, GripVertical } from "lucide-react";
 
 interface KanbanTask {
   id: string;
@@ -44,6 +44,7 @@ export default function KanbanPage() {
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [loading, setLoading] = useState(false);
+  const [draggedTask, setDraggedTask] = useState<{ task: KanbanTask; fromColumn: string } | null>(null);
 
   useEffect(() => {
     if (!socket || !connected) return;
@@ -109,8 +110,14 @@ export default function KanbanPage() {
     socket?.emit("orchestration:feedback", { feedback, approved });
   };
 
-  const moveTask = (taskId: string, newStatus: string) => {
+  const moveTask = (taskId: string, newStatus: string, task?: KanbanTask) => {
     socket?.emit("orchestration:move-task", { task_id: taskId, status: newStatus });
+
+    // If moved to In Progress, trigger agent to resume work
+    if (newStatus === "In Progress" && task && task.assigned_to.length > 0) {
+      // Trigger orchestration to resume work on this task
+      socket?.emit("orchestration:resume-task", { task_id: taskId });
+    }
   };
 
   const refresh = () => {
@@ -195,6 +202,8 @@ export default function KanbanPage() {
             color={col.color}
             tasks={kanban[col.key] || []}
             onMoveTask={moveTask}
+            draggedTask={draggedTask}
+            setDraggedTask={setDraggedTask}
           />
         ))}
       </div>
@@ -273,11 +282,15 @@ function KanbanColumn({
   color,
   tasks,
   onMoveTask,
+  draggedTask,
+  setDraggedTask,
 }: {
   title: string;
   color: string;
   tasks: KanbanTask[];
-  onMoveTask: (taskId: string, newStatus: string) => void;
+  onMoveTask: (taskId: string, newStatus: string, task?: KanbanTask) => void;
+  draggedTask: { task: KanbanTask; fromColumn: string } | null;
+  setDraggedTask: (task: { task: KanbanTask; fromColumn: string } | null) => void;
 }) {
   const colors: Record<string, { border: string; dot: string; header: string }> = {
     gray: { border: "border-white/5", dot: "bg-white/20", header: "text-white/40" },
@@ -296,8 +309,33 @@ function KanbanColumn({
     "Done": "Done",
   };
 
+  // Handle drag over - allow dropping
+  const handleDragOver = (e: DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  // Handle drop - move task to this column
+  const handleDrop = (e: DragEvent) => {
+    e.preventDefault();
+    if (draggedTask && draggedTask.fromColumn !== title) {
+      onMoveTask(draggedTask.task.id, title, draggedTask.task);
+    }
+    setDraggedTask(null);
+  };
+
+  // Highlight drop target when dragging
+  const isDropTarget = draggedTask && draggedTask.fromColumn !== title;
+
   return (
-    <div className={`bg-white/[0.02] border ${style.border} rounded-xl p-4 min-h-[400px]`}>
+    <div
+      className={`bg-white/[0.02] border ${style.border} rounded-xl p-4 min-h-[400px] transition-colors ${
+        isDropTarget ? "border-blue-400/50 bg-blue-500/5" : ""
+      }`}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+      onDragLeave={() => {}}
+    >
       <div className="flex items-center gap-2 mb-4">
         <div className={`w-2 h-2 rounded-full ${style.dot}`} />
         <h3 className={`text-sm font-medium ${style.header}`}>{title}</h3>
@@ -312,6 +350,8 @@ function KanbanColumn({
             task={task}
             onMove={onMoveTask}
             currentStatus={statusMap[title]}
+            setDraggedTask={setDraggedTask}
+            isDragging={draggedTask?.task.id === task.id}
           />
         ))}
         {tasks.length === 0 && (
@@ -328,21 +368,47 @@ function KanbanTaskCard({
   task,
   onMove,
   currentStatus,
+  setDraggedTask,
+  isDragging,
 }: {
   task: KanbanTask;
-  onMove: (taskId: string, newStatus: string) => void;
+  onMove: (taskId: string, newStatus: string, task?: KanbanTask) => void;
   currentStatus: string;
+  setDraggedTask: (task: { task: KanbanTask; fromColumn: string } | null) => void;
+  isDragging?: boolean;
 }) {
   const [showMenu, setShowMenu] = useState(false);
+
+  // Handle drag start
+  const handleDragStart = (e: DragEvent) => {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", task.id);
+    setDraggedTask({ task, fromColumn: currentStatus });
+  };
+
+  // Handle drag end
+  const handleDragEnd = () => {
+    setDraggedTask(null);
+  };
 
   const availableStatuses = ["Backlog", "To Do", "In Progress", "Review", "Done"].filter(
     (s) => s !== currentStatus
   );
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-lg p-3 hover:border-white/20 transition-colors group">
+    <div
+      className={`bg-white/5 border border-white/10 rounded-lg p-3 hover:border-white/20 transition-colors group cursor-grab active:cursor-grabbing ${
+        isDragging ? "opacity-50" : ""
+      }`}
+      draggable
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
       <div className="flex items-start justify-between mb-2">
-        <span className="text-xs font-mono text-white/30">{task.id}</span>
+        <div className="flex items-center gap-2">
+          <GripVertical size={14} className="text-white/20 cursor-grab" />
+          <span className="text-xs font-mono text-white/30">{task.id}</span>
+        </div>
         <div className="relative">
           <button
             onClick={() => setShowMenu(!showMenu)}

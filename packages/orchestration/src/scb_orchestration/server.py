@@ -132,6 +132,40 @@ class OrchestrationHandler(BaseHTTPRequestHandler):
             else:
                 self._send_json(404, {"error": "Task not found"})
 
+        elif path == '/task/resume':
+            # Resume working on a task (trigger agents to continue)
+            task_id = data.get("task_id", "")
+            user_request = data.get("request", "")
+
+            if not self.flow:
+                self.flow = create_flow(self.persistence)
+
+            # Find the task and trigger continuation
+            state = self.persistence.load_state()
+            task = None
+            for col_tasks in state.kanban.values():
+                for t in col_tasks:
+                    if t.id == task_id:
+                        task = t
+                        break
+            if not task:
+                self._send_json(404, {"error": "Task not found"})
+                return
+
+            # Run the flow to continue working on the task
+            result = self.flow.run(inputs={
+                "user_request": user_request or f"Continue working on task: {task.description}",
+                "resume_task_id": task_id,
+            })
+
+            self.persistence.save_state(self.flow.state)
+
+            self._send_json(200, {
+                "status": "task_resumed",
+                "task_id": task_id,
+                "phase": self.flow.state.current_phase,
+            })
+
         else:
             self._send_json(404, {"error": "Not found"})
 

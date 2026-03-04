@@ -17,7 +17,7 @@ export default function MediaPage() {
   const { socket, connected } = useSocket();
   const [files, setFiles] = useState<MediaFile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFile, setSelectedFile] = useState<MediaFile | null>(null);
   const [previewData, setPreviewData] = useState<string | null>(null);
