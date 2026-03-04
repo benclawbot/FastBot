@@ -73,7 +73,7 @@ export default function SettingsPage() {
   };
 
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || !connected) return;
 
     socket.on("settings:saved", (data: { section: string; success: boolean; error?: string; hint?: string }) => {
       if (data.section === "llm") {
@@ -110,7 +110,7 @@ export default function SettingsPage() {
       }
     });
 
-    // Request initial settings
+    // Request initial settings when connected
     socket.emit("settings:request", { section: "llm" });
     socket.emit("settings:request", { section: "telegram" });
 
@@ -173,7 +173,7 @@ export default function SettingsPage() {
       socket.off("voice:status");
       socket.off("voice:test:result");
     };
-  }, [socket]);
+  }, [socket, connected]);
 
   const handleSaveLlm = (e: FormEvent) => {
     e.preventDefault();
