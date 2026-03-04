@@ -345,7 +345,7 @@ export default function ChatPage() {
           {messages.length === 0 && (
             <div className="text-center py-20">
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center mx-auto mb-5 shadow-lg shadow-emerald-500/20">
-                <span className="text-black text-2xl font-bold">SC</span>
+                <span className="text-black text-2xl font-bold">FB</span>
               </div>
               <h3 className="text-xl font-light text-white/80 mb-3">
                 FastBot

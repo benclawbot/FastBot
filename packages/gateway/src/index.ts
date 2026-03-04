@@ -1102,7 +1102,7 @@ async function main() {
     const lines: string[] = [];
     lines.push("");
     lines.push("╔════════════════════════════════════════════════════════════╗");
-    lines.push("║              SecuredClaudeBot Started                     ║");
+    lines.push("║                  FastBot Started                         ║");
     lines.push("╠════════════════════════════════════════════════════════════╣");
     lines.push(`║  Gateway:  ws://${host}:${actualPort}`.padEnd(62) + "║");
     lines.push(`║            ws://localhost:${actualPort}`.padEnd(62) + "║");

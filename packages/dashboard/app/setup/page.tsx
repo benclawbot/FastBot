@@ -136,7 +136,7 @@ export default function SetupPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-500/20">
-            <span className="text-black text-2xl font-bold">SC</span>
+            <span className="text-black text-2xl font-bold">FB</span>
           </div>
           <h1 className="text-2xl font-light text-white">FastBot Setup</h1>
           <p className="text-sm text-white/40 mt-1">Configure your secure AI gateway</p>
