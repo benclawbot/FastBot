@@ -730,6 +730,11 @@ async function main() {
         socket.emit("agents:error", { error: "Agents not configured" });
         return;
       }
+      // Prevent deletion of bot agent
+      if (ctx.agents.isBotAgent(_data.id)) {
+        socket.emit("agents:error", { error: "Cannot delete the main bot agent" });
+        return;
+      }
       const success = ctx.agents.deleteAgent(_data.id);
       socket.emit("agents:deleted", { success });
     });

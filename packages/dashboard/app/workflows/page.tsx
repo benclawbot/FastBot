@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSocket } from "@/lib/socket";
 import { useWorkflows } from "@/lib/use-workflows";
-import { Zap, Play, Clock, CheckCircle2, XCircle, AlertCircle, Plus, FileText, History, Box, ArrowRight, Trash2, GripVertical, Settings, GitBranch, Webhook, Database, Bell, Mail, MessageSquare, Terminal, FileJson } from "lucide-react";
+import { Zap, Play, Clock, CheckCircle2, XCircle, AlertCircle, Plus, FileText, History, Box, ArrowRight, Trash2, GripVertical, Settings, GitBranch, Webhook, Database, Bell, Mail, MessageSquare, Terminal, FileJson, Save } from "lucide-react";
 import type { WorkflowTemplate, WorkflowRun } from "@/lib/workflows";
 
 const categoryColors: Record<string, string> = {
@@ -489,6 +489,61 @@ steps:
     action: send_notification
     channel: telegram`);
   const [runStatus, setRunStatus] = useState<{ success?: boolean; message?: string } | null>(null);
+  const [customTemplates, setCustomTemplates] = useState<WorkflowTemplate[]>([]);
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+  const [saveTemplateName, setSaveTemplateName] = useState("");
+  const [saveTemplateCategory, setSaveTemplateCategory] = useState("other");
+
+  // Load custom templates from localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("workflow_templates");
+      if (saved) {
+        setCustomTemplates(JSON.parse(saved));
+      }
+    }
+  }, []);
+
+  // Save custom templates to localStorage
+  const saveCustomTemplate = () => {
+    if (!saveTemplateName.trim()) return;
+
+    // Parse steps from YAML
+    const nodes = parseYamlToNodes(customYaml);
+    const steps = nodes.map((n) => n.name);
+
+    const newTemplate: WorkflowTemplate = {
+      id: `custom-${Date.now()}`,
+      name: saveTemplateName,
+      description: `Custom workflow: ${saveTemplateName}`,
+      steps,
+      category: saveTemplateCategory as "development" | "analytics" | "marketing" | "other",
+    };
+
+    const updated = [...customTemplates, newTemplate];
+    setCustomTemplates(updated);
+    localStorage.setItem("workflow_templates", JSON.stringify(updated));
+
+    setSaveTemplateOpen(false);
+    setSaveTemplateName("");
+    setRunStatus({ success: true, message: `Template "${saveTemplateName}" saved successfully!` });
+  };
+
+  const deleteCustomTemplate = (id: string) => {
+    const updated = customTemplates.filter((t) => t.id !== id);
+    setCustomTemplates(updated);
+    localStorage.setItem("workflow_templates", JSON.stringify(updated));
+  };
+
+  const loadTemplateToEditor = (template: WorkflowTemplate) => {
+    setCustomYaml(nodesToYaml(template.steps.map((name, i) => ({
+      id: `node-${i}`,
+      name,
+      action: "default",
+      config: {},
+    }))));
+    setActiveTab("create");
+  };
 
   useEffect(() => {
     if (connected) {
@@ -591,15 +646,82 @@ steps:
 
         {/* Templates Tab */}
         {activeTab === "templates" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {templates.map((template) => (
-              <WorkflowCard
-                key={template.id}
-                template={template}
-                onRun={() => handleRunWorkflow(template)}
-                running={running && selectedWorkflow?.id === template.id}
-              />
-            ))}
+          <div className="space-y-6">
+            {/* Built-in Templates */}
+            {templates.length > 0 && (
+              <div>
+                <h3 className="text-sm text-white/40 uppercase tracking-wider mb-4">Built-in Templates</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {templates.map((template) => (
+                    <WorkflowCard
+                      key={template.id}
+                      template={template}
+                      onRun={() => handleRunWorkflow(template)}
+                      running={running && selectedWorkflow?.id === template.id}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Custom Templates */}
+            {customTemplates.length > 0 && (
+              <div>
+                <h3 className="text-sm text-white/40 uppercase tracking-wider mb-4">My Templates</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {customTemplates.map((template) => (
+                    <div key={template.id} className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-5 hover:border-white/[0.12] transition-all group">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                          <Zap size={20} className="text-emerald-400" />
+                        </div>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => loadTemplateToEditor(template)}
+                            className="p-1.5 rounded-lg hover:bg-white/5 text-white/40 hover:text-white"
+                            title="Edit"
+                          >
+                            <Settings size={14} />
+                          </button>
+                          <button
+                            onClick={() => deleteCustomTemplate(template.id)}
+                            className="p-1.5 rounded-lg hover:bg-red-500/10 text-white/40 hover:text-red-400"
+                            title="Delete"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+
+                      <h3 className="text-lg font-light text-white mb-2">{template.name}</h3>
+                      <p className="text-sm text-white/40 mb-4">{template.description}</p>
+
+                      <div className="flex flex-wrap gap-1 mb-4">
+                        {template.steps.slice(0, 3).map((step, i) => (
+                          <span key={i} className="text-xs text-white/30 bg-white/5 px-2 py-1 rounded">
+                            {step}
+                          </span>
+                        ))}
+                        {template.steps.length > 3 && (
+                          <span className="text-xs text-white/30 bg-white/5 px-2 py-1 rounded">
+                            +{template.steps.length - 3} more
+                          </span>
+                        )}
+                      </div>
+
+                      <button
+                        onClick={() => handleRunWorkflow(template)}
+                        disabled={running}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:bg-white/10 disabled:text-white/30 text-black font-medium rounded-xl transition-colors"
+                      >
+                        <Play size={16} />
+                        {running ? "Running..." : "Run Workflow"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -608,7 +730,16 @@ steps:
           <div className="space-y-4">
             <VisualWorkflowEditor yaml={customYaml} onYamlChange={setCustomYaml} />
 
-            <div className="flex justify-end">
+            <div className="flex justify-between items-center">
+              <button
+                onClick={() => setSaveTemplateOpen(true)}
+                disabled={!customYaml.trim()}
+                className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 disabled:opacity-50 text-white/70 rounded-xl transition-colors"
+              >
+                <Save size={16} />
+                Save as Template
+              </button>
+
               <button
                 onClick={handleRunCustom}
                 disabled={!customYaml.trim() || running}
@@ -617,6 +748,62 @@ steps:
                 <Play size={18} />
                 {running ? "Running..." : "Run Custom Workflow"}
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Save Template Modal */}
+        {saveTemplateOpen && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-zinc-900 border border-white/10 rounded-2xl p-6 w-full max-w-md">
+              <h3 className="text-lg font-light text-white mb-4">Save as Template</h3>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm text-white/60 mb-2 block">Template Name</label>
+                  <input
+                    type="text"
+                    value={saveTemplateName}
+                    onChange={(e) => setSaveTemplateName(e.target.value)}
+                    placeholder="My Workflow Template"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white placeholder-white/30 outline-none focus:border-violet-500/50"
+                    autoFocus
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm text-white/60 mb-2 block">Category</label>
+                  <select
+                    value={saveTemplateCategory}
+                    onChange={(e) => setSaveTemplateCategory(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-violet-500/50"
+                  >
+                    <option value="development">Development</option>
+                    <option value="analytics">Analytics</option>
+                    <option value="marketing">Marketing</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setSaveTemplateOpen(false);
+                    setSaveTemplateName("");
+                  }}
+                  className="flex-1 px-4 py-2 bg-white/5 hover:bg-white/10 text-white/70 rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveCustomTemplate}
+                  disabled={!saveTemplateName.trim()}
+                  className="flex-1 px-4 py-2 bg-violet-500 hover:bg-violet-400 disabled:bg-white/10 disabled:text-white/30 text-black font-medium rounded-xl transition-colors"
+                >
+                  Save
+                </button>
+              </div>
             </div>
           </div>
         )}

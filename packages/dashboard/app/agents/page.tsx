@@ -245,12 +245,18 @@ export default function AgentsPage() {
                     <option value="pending">Pending</option>
                     <option value="inactive">Inactive</option>
                   </select>
-                  <button
-                    onClick={() => deleteAgent(selectedAgent.id)}
-                    className="p-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg transition-colors"
-                  >
-                    <Trash2 size={16} className="text-red-400" />
-                  </button>
+                  {selectedAgent.id === "bot" ? (
+                    <span className="text-xs px-2 py-1 bg-violet-500/20 text-violet-400 rounded">
+                      Main Agent
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => deleteAgent(selectedAgent.id)}
+                      className="p-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg transition-colors"
+                    >
+                      <Trash2 size={16} className="text-red-400" />
+                    </button>
+                  )}
                 </div>
               </div>
 

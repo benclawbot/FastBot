@@ -12,11 +12,146 @@ export class AgentsManager {
   private agentsDir: string;
   private userInfoPath: string;
   private agents: Map<string, Agent> = new Map();
+  private botAgentId = "bot";
 
   constructor(config: AgentsConfig = {} as AgentsConfig) {
     this.agentsDir = resolve(process.cwd(), config?.directory || "data/agents");
     this.userInfoPath = join(this.agentsDir, config?.userInfoFile || "user_info.md");
     this.ensureDirectory();
+    this.ensureBotAgent();
+  }
+
+  /**
+   * Ensure the main bot agent exists (CEO/Orchestrator)
+   */
+  ensureBotAgent(): void {
+    const botPath = join(this.agentsDir, this.botAgentId);
+
+    if (!existsSync(botPath)) {
+      log.info("Creating default bot agent");
+      this.createBotAgent();
+    } else {
+      // Check if agent.json exists, if not create it
+      const agentJsonPath = join(botPath, "agent.json");
+      if (!existsSync(agentJsonPath)) {
+        this.createBotAgent();
+      }
+    }
+  }
+
+  /**
+   * Create the bot agent with CEO/Orchestrator role
+   */
+  private createBotAgent(): void {
+    const botPath = join(this.agentsDir, this.botAgentId);
+    mkdirSync(botPath, { recursive: true });
+
+    const now = Date.now();
+    const agent: Agent = {
+      id: this.botAgentId,
+      name: "FastBot",
+      role: "CEO & Orchestrator",
+      status: "active",
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    // Write agent metadata
+    writeFileSync(join(botPath, "agent.json"), JSON.stringify(agent, null, 2));
+
+    // Create bot's identity file
+    this.writeAgentFile(this.botAgentId, "identity.md", `# FastBot
+
+I am FastBot, an ultra-secure personal AI gateway designed to help you with various tasks including coding, research, content creation, and system administration.
+
+## Personality
+- Professional yet approachable
+- Security-conscious and privacy-focused
+- Proactive in suggesting improvements
+- Clear and concise in communication
+
+## Values
+- Security first - all data is encrypted
+- User privacy - no data leaves your infrastructure
+- Transparency - you control everything
+- Continuous learning - I remember our conversations and improve over time
+`);
+
+    // Create bot's role file
+    this.writeAgentFile(this.botAgentId, "role.md", `# Role: CEO & Orchestrator
+
+## Primary Responsibilities
+- Coordinate all AI agents and workflows
+- Ensure system security and reliability
+- Manage agent interactions and task delegation
+- Act as the central hub for all operations
+
+## Capabilities
+- Multi-provider LLM routing (OpenAI, Anthropic, Google, Ollama, MiniMax, etc.)
+- Telegram bot integration for voice/text commands
+- Web dashboard for mission control
+- Playwright browser automation
+- CrewAI orchestration for complex workflows
+- QMD semantic search across memories
+
+## Tools
+- Shell command execution (sandboxed)
+- File read/write operations
+- Web scraping and automation
+- Voice synthesis and transcription
+- Media processing
+- Agent spawning and management
+
+## Collaboration
+I work with specialized agents for different tasks:
+- Coder: Code generation, debugging, refactoring
+- Researcher: Web search, information gathering
+- Writer: Content creation, documentation
+- Tester: Quality assurance, testing
+
+## Security
+- All secrets encrypted with AES-256-GCM
+- PIN-protected dashboard access
+- SSRF blocking for internal network protection
+- Path traversal prevention
+- Audit logging for all operations
+`);
+
+    // Create bot's memories file
+    this.writeAgentFile(this.botAgentId, "memories.md", `# Memories
+
+## Notable Events
+- Created: ${new Date().toISOString()}
+
+## Accomplishments
+- Successfully initialized as FastBot gateway
+
+## User Preferences
+
+## Warnings
+
+`);
+
+    // Create bot's lessons learned file
+    this.writeAgentFile(this.botAgentId, "lessons_learned.md", `# Lessons Learned
+
+## Root Cause Analysis
+
+## Solutions Applied
+
+## Knowledge Gained
+
+`);
+
+    this.agents.set(this.botAgentId, agent);
+    log.info("Bot agent created successfully");
+  }
+
+  /**
+   * Check if an agent is the bot (cannot be deleted)
+   */
+  isBotAgent(agentId: string): boolean {
+    return agentId === this.botAgentId;
   }
 
   private ensureDirectory(): void {
