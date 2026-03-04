@@ -95,21 +95,84 @@ Ultra-secure personal AI gateway inspired by OpenClaw. Runs on Android (Termux) 
 
 ### Installation
 
+#### Linux (Ubuntu/Debian)
 ```bash
-# Clone the repository
+# Install Node.js 22
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Install pnpm
+npm install -g pnpm
+
+# Install Python 3.11+
+sudo apt-get install python3.11 python3-pip
+
+# Clone and setup
 git clone https://github.com/benclawbot/FastBot.git
 cd FastBot
-
-# Install dependencies
 pnpm install
-
-# Approve native builds (required for sqlite3, canvas, sharp)
-# Press y to approve all, or select individually
-pnpm approve-builds
-
-# Build all packages
+pnpm approve-builds  # Press y to approve all
 pnpm build
 ```
+
+#### macOS
+```bash
+# Install Homebrew (if not installed)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Install Node.js 22 and Python
+brew install node@22 python@3.11
+
+# Install pnpm
+npm install -g pnpm
+
+# Clone and setup
+git clone https://github.com/benclawbot/FastBot.git
+cd FastBot
+pnpm install
+pnpm approve-builds  # Press y to approve all
+pnpm build
+```
+
+#### Android (Termux)
+```bash
+# Update Termux
+apt update && apt upgrade -y
+
+# Install Node.js and Python
+pkg install nodejs python
+
+# Install pnpm
+npm install -g pnpm
+
+# Clone and setup
+git clone https://github.com/benclawbot/FastBot.git
+cd FastBot
+pnpm install --ignore-scripts
+pnpm build
+```
+
+#### Windows WSL
+```bash
+# Install WSL2 (run in PowerShell as admin)
+wsl --install
+
+# Inside WSL, follow Linux instructions above
+```
+
+### Development vs Production Mode
+
+| Feature | Development | Production |
+|---------|-------------|------------|
+| **Command** | `pnpm dev` | `npx pm2 start ecosystem.config.js` |
+| **Hot reload** | Yes | No |
+| **Logging** | Console | PM2 logs |
+| **Performance** | Slower (live compilation) | Optimized |
+| **Use case** | Coding/debugging | 24/7 deployment |
+
+**When to use each:**
+- **Development**: When modifying code, testing features, debugging
+- **Production**: When running FastBot as a service, accessible remotely
 
 ### Running FastBot
 
@@ -118,7 +181,7 @@ pnpm build
 pnpm dev
 ```
 
-**Production mode (recommended):**
+**Production mode (recommended for deployment):**
 ```bash
 # Start all services with PM2
 npx pm2 start ecosystem.config.js
@@ -152,7 +215,7 @@ Edit `config.json` in `packages/gateway/`:
     "port": 18789,
     "dashboardPort": 3100,
     "host": "127.0.0.1",
-    "randomizePort": true
+    "randomizePort": true  // Generates random port (10000-60000) on each start
   },
   "telegram": {
     "botToken": "your_bot_token",
@@ -228,8 +291,11 @@ python -m src.scb_orchestration.server
 The core gateway service.
 
 **Ports:**
-- WebSocket: `18789`
+- WebSocket: `random (10000-60000)` - Randomized on startup by default
 - HTTP: `18788` (optional)
+- Dashboard port: `3100`
+
+**Note:** The gateway port is randomized on each startup for security. Check the startup logs or `.gateway-port` file for the current port.
 
 **Socket Events:**
 - `chat:message` - Send/receive chat messages
