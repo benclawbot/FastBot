@@ -517,6 +517,11 @@ async function main() {
           saveConfig(ctx.config);
 
           log.info({ provider: llmConfig.provider, model: llmConfig.model }, "LLM config validated and applied");
+
+          socket.emit("settings:saved", {
+            section: "llm",
+            success: true,
+          });
         }
 
         if (data.section === "telegram" && data.data) {
@@ -534,6 +539,11 @@ async function main() {
           saveConfig(ctx.config);
 
           log.info("Telegram config updated - restart gateway to apply");
+
+          socket.emit("settings:saved", {
+            section: "telegram",
+            success: true,
+          });
         }
 
         if (data.section === "authToken" && data.data) {
