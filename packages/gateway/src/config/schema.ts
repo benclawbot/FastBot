@@ -6,6 +6,12 @@ export const telegramConfigSchema = z.object({
   approvedUsers: z.array(z.number()).default([]),
   /** Rate limit: max requests per minute per user */
   rateLimit: z.number().default(20),
+  /** Enable voice (TTS) replies in Telegram */
+  voiceReplies: z.boolean().default(false),
+  /** Voice provider for TTS: elevenlabs or openai */
+  voiceProvider: z.enum(["elevenlabs", "openai"]).default("elevenlabs"),
+  /** ElevenLabs voice ID (default: rachel) */
+  voiceId: z.string().default("rachel"),
 });
 
 export const llmProviderSchema = z.object({

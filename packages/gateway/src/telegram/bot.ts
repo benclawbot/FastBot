@@ -108,8 +108,8 @@ export class TelegramBot {
         return;
       }
 
-      // Rate limit check
-      const actorId = `tg:${userId}`;
+      // Rate limit check - use unified session ID to sync with web dashboard
+      const actorId = `user-1`;
       if (!this.ctx.rateLimiter.consume(actorId)) {
         await botCtx.reply("Rate limited. Please wait a moment.");
         this.ctx.audit.log({
@@ -180,8 +180,8 @@ export class TelegramBot {
       const voice = botCtx.message.voice;
       if (!voice) return;
 
-      // Rate limit check
-      const actorId = `tg:${userId}`;
+      // Rate limit check - use unified session ID to sync with web dashboard
+      const actorId = `user-1`;
       if (!this.ctx.rateLimiter.consume(actorId)) {
         await botCtx.reply("Rate limited. Please wait a moment.");
         return;
@@ -259,9 +259,47 @@ export class TelegramBot {
   }
 
   /**
-   * Send a response to a Telegram user, chunking if needed.
+   * Convert text to speech and send as voice note
    */
-  async sendResponse(userId: number, text: string): Promise<void> {
+  private async sendVoiceReply(userId: number, text: string): Promise<void> {
+    const voiceConfig = this.ctx.config.telegram;
+    if (!voiceConfig?.voiceReplies) return;
+
+    const apiKey = voiceConfig.voiceProvider === "elevenlabs"
+      ? this.ctx.config.voice?.elevenLabsApiKey
+      : this.ctx.config.llm.primary.apiKey;
+
+    if (!apiKey) {
+      log.warn("Voice reply enabled but no API key configured");
+      return;
+    }
+
+    try {
+      const { textToSpeech } = await import("../voice/tts.js");
+      const result = await textToSpeech(text, apiKey, {
+        provider: voiceConfig.voiceProvider,
+        voice: voiceConfig.voiceId,
+      });
+
+      // Send voice note to Telegram
+      // Telegram requires audio as a file or InputFile
+      const { InputFile } = await import("grammy");
+      const buffer = result.audio;
+      await this.bot.api.sendVoice(userId, new InputFile(buffer, "voice.mp3"), {
+        caption: "(voice reply)",
+      });
+      log.info({ userId, textLength: text.length }, "Sent voice reply");
+    } catch (err) {
+      log.error({ userId, err }, "Failed to send voice reply, falling back to text");
+      // Fallback to text message
+      await this.sendTextResponse(userId, text);
+    }
+  }
+
+  /**
+   * Send a text response (used as fallback or when voice disabled)
+   */
+  private async sendTextResponse(userId: number, text: string): Promise<void> {
     const chunks = chunkMessage(text);
     for (const chunk of chunks) {
       try {
@@ -276,6 +314,19 @@ export class TelegramBot {
           log.error({ userId, err: sendErr }, "Failed to send Telegram message");
         }
       }
+    }
+  }
+
+  /**
+   * Send a response to a Telegram user, chunking if needed.
+   * Optionally sends as voice note if voiceReplies is enabled.
+   */
+  async sendResponse(userId: number, text: string): Promise<void> {
+    const voiceConfig = this.ctx.config.telegram;
+    if (voiceConfig?.voiceReplies) {
+      await this.sendVoiceReply(userId, text);
+    } else {
+      await this.sendTextResponse(userId, text);
     }
   }
 

@@ -98,8 +98,9 @@ export default function ChatPage() {
       }
     });
 
-    // Join session
-    socket.emit("session:join", { actorId: "dashboard-user" });
+    // Join session - use shared user ID to sync with Telegram
+    // The same actorId allows both interfaces to share conversation history
+    socket.emit("session:join", { actorId: "user-1" });
 
     return () => {
       socket.off("session:joined");
@@ -133,7 +134,7 @@ export default function ChatPage() {
     if (!socket || !connected) return;
 
     socket.emit("chat:message", {
-      actorId: "dashboard-user",
+      actorId: "user-1",
       content,
       attachments: attachmentList,
     });
