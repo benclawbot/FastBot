@@ -236,11 +236,13 @@ async function main() {
     log.info({ socketId: socket.id, actor: user?.sub }, "Client connected");
 
     // ── Authentication ──
-    socket.on("auth:login", async (data: { pin: string }) => {
+    socket.on("auth:login", async (data: { pin: string }, callback?: (response: { token?: string; error?: string }) => void) => {
       // Verify PIN
       const storedPin = config.security.pin;
       if (!storedPin) {
-        socket.emit("auth:error", { error: "No PIN configured. Complete setup first." });
+        const error = "No PIN configured. Complete setup first.";
+        if (callback) callback({ error });
+        else socket.emit("auth:error", { error });
         return;
       }
 
@@ -251,7 +253,9 @@ async function main() {
           actor: socket.id,
           detail: "Invalid PIN via dashboard",
         });
-        socket.emit("auth:error", { error: "Invalid PIN" });
+        const error = "Invalid PIN";
+        if (callback) callback({ error });
+        else socket.emit("auth:error", { error });
         return;
       }
 
@@ -267,7 +271,12 @@ async function main() {
         detail: "Dashboard login successful",
       });
 
-      socket.emit("auth:success", { token });
+      // Use callback if provided (Socket.io pattern), otherwise emit event
+      if (callback) {
+        callback({ token });
+      } else {
+        socket.emit("auth:success", { token });
+      }
     });
 
     // ── Chat ──
