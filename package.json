@@ -23,11 +23,12 @@
       "canvas",
       "esbuild",
       "sharp",
-      "sqlite3"
+      "sqlite3",
+      "tesseract.js"
     ]
   },
   "devDependencies": {
-    "pm2": "^6.0.0",
+    "pm2": "^6.0.14",
     "tsx": "^4.21.0"
   }
 }

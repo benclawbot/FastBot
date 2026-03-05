@@ -151,6 +151,11 @@ function runPnpmInstall() {
   console.log("\nRunning pnpm install (auto-building native dependencies)...");
 
   try {
+    // Approve build scripts for required packages
+    execSync('pnpm config set onlyBuiltDependencies "better-sqlite3 canvas esbuild sharp sqlite3 tesseract.js"', { stdio: "inherit" });
+  } catch {}
+
+  try {
     // First do install with all scripts allowed
     execSync("pnpm install --ignore-scripts=false", { stdio: "inherit" });
     console.log("pnpm install completed.");
