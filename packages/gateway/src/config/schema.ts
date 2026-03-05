@@ -55,16 +55,14 @@ export const securityConfigSchema = z.object({
 });
 
 export const serverConfigSchema = z.object({
-  /** Gateway WebSocket port (used if randomizePort is false) */
-  port: z.number().default(20000),
+  /** Gateway WebSocket port */
+  port: z.number().default(44512),
   /** Dashboard Next.js port */
   dashboardPort: z.number().default(3100),
   /** Hostname to bind to (use 0.0.0.0 for external access, 127.0.0.1 for localhost only) */
   host: z.string().default("0.0.0.0"),
   /** Public hostname for OAuth callbacks (e.g., Tailscale IP or domain). If not set, uses host. */
   publicHost: z.string().optional(),
-  /** Randomize port on each startup (recommended for security) */
-  randomizePort: z.boolean().default(true),
 });
 
 export const memoryConfigSchema = z.object({
@@ -187,6 +185,16 @@ export const agentsConfigSchema = z
     enableRcaCron: z.boolean().default(true),
     /** RCA cron schedule (cron syntax) */
     rcaCronSchedule: z.string().default("0 2 * * *"), // Daily at 2am
+    /** Enable self-improvement scheduler */
+    enableSelfImprovement: z.boolean().default(true),
+    /** Times to run self-improvement (HH:MM format) */
+    selfImprovementTimes: z.array(z.string()).default(["06:00", "18:00"]),
+    /** Auto-index codebase on startup */
+    autoIndexCodebase: z.boolean().default(true),
+    /** Auto-push improvements to GitHub */
+    autoPushGithub: z.boolean().default(false),
+    /** GitHub repository for auto-push (owner/repo format) */
+    githubRepo: z.string().optional(),
   })
   .optional();
 

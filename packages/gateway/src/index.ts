@@ -277,6 +277,17 @@ async function main() {
 
     // ── Chat ──
     socket.on("chat:message", async (data: { actorId: string; content: string }) => {
+      // Authentication check
+      if (!isAuthenticated(socket)) {
+        socket.emit("chat:error", { error: "Authentication required" });
+        audit.log({
+          event: "security.unauthenticated_access",
+          actor: data.actorId,
+          detail: "Unauthenticated user attempted to send chat message",
+        });
+        return;
+      }
+
       // Rate limit check
       if (!dashboardRateLimiter.consume(data.actorId)) {
         socket.emit("chat:error", { error: "Rate limited. Try again shortly." });
@@ -907,6 +918,10 @@ async function main() {
 
     // ── Gateway Control ──
     socket.on("gateway:restart", () => {
+      if (!isAuthenticated(socket)) {
+        socket.emit("error:unauthenticated", { error: "Authentication required" });
+        return;
+      }
       log.warn({ socketId: socket.id }, "Gateway restart requested via dashboard");
       audit.log({
         event: "config.changed",
@@ -923,6 +938,10 @@ async function main() {
     });
 
     socket.on("gateway:stop", () => {
+      if (!isAuthenticated(socket)) {
+        socket.emit("error:unauthenticated", { error: "Authentication required" });
+        return;
+      }
       log.warn({ socketId: socket.id }, "Gateway stop requested via dashboard");
       audit.log({
         event: "config.changed",

@@ -30,23 +30,8 @@ async function discoverGatewayPort(): Promise<number> {
     // Fall through to next method
   }
 
-  // Fallback: try common ports
-  const ports = [18789, 3100];
-
-  for (const port of ports) {
-    try {
-      const res = await fetch(`http://${hostname}:${port}/.gateway-port`, {
-        method: "GET",
-      });
-      if (res.ok) {
-        const data = await res.json();
-        return data.port;
-      }
-    } catch {
-      // Port not available, try next
-    }
-  }
-  return 18789; // Fallback to default
+  // Fallback: try fixed port
+  return 44512;
 }
 
 interface SocketContextValue {

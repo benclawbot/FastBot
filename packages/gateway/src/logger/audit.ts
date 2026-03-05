@@ -14,6 +14,7 @@ export type AuditEvent =
   | "security.path_traversal"
   | "security.rate_limited"
   | "security.binary_blocked"
+  | "security.unauthenticated_access"
   | "agent.spawned"
   | "agent.completed"
   | "agent.failed"

@@ -26,7 +26,7 @@ Ultra-secure personal AI gateway inspired by OpenClaw. Runs on Android (Termux) 
 - **Command Autocomplete** - Type `/` in chat to see available commands
 - **File Attachments** - Paste images or attach files in chat
 - **Bot Identity** - Customizable personality via identity, role, and memories
-- **Port Randomization** - Random port (10000-60000) on each startup for security
+- **Fixed Port** - Default port 44512 for reliable connections
 - **PM2 Process Manager** - Production-ready process management
 
 ## Screenshots
@@ -273,10 +273,9 @@ Edit `config.json` in `packages/gateway/`:
 ```json
 {
   "server": {
-    "port": 18789,
+    "port": 44512,
     "dashboardPort": 3100,
-    "host": "127.0.0.1",
-    "randomizePort": true  // Generates random port (10000-60000) on each start
+    "host": "0.0.0.0"
   },
   "telegram": {
     "botToken": "your_bot_token",
@@ -318,8 +317,6 @@ Edit `config.json` in `packages/gateway/`:
 }
 ```
 
-**Port Auto-detection:** If the configured port is already in use, the gateway will automatically try the next 10 ports.
-
 ### Running
 
 ```bash
@@ -352,11 +349,8 @@ python -m src.scb_orchestration.server
 The core gateway service.
 
 **Ports:**
-- WebSocket: `random (10000-60000)` - Randomized on startup by default
-- HTTP: `18788` (optional)
+- WebSocket: `44512`
 - Dashboard port: `3100`
-
-**Note:** The gateway port is randomized on each startup for security. Check the startup logs or `.gateway-port` file for the current port.
 
 **Socket Events:**
 - `chat:message` - Send/receive chat messages
@@ -576,7 +570,7 @@ If you get TypeScript errors about `document` in playwright:
 
 ### Port Conflicts
 
-If ports are already in use, the gateway will automatically find the next available port. Check the logs to see which port is being used.
+If port 44512 is already in use, update the `port` in `config.json` and restart.
 
 ### Database Issues
 
