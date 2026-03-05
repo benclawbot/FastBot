@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { createChildLogger } from "../logger/index.js";
 import { MediaHandler } from "../media/handler.js";
 import { getSkillsForSystemPrompt } from "../skills/manager.js";
+import { ORCHESTRATION_SYSTEM_PROMPT } from "../orchestration/chat-integration.js";
 
 const log = createChildLogger("bot-context");
 
@@ -82,6 +83,8 @@ ${memories}
 ${mediaSummary}
 
 ${skillsSummary}
+
+${ORCHESTRATION_SYSTEM_PROMPT}
 
 # Media Sharing (Telegram)
 

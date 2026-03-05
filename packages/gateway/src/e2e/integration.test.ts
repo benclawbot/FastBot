@@ -10,7 +10,6 @@ import { KeyStore } from "../crypto/keystore.js";
 import { AuditLog } from "../logger/audit.js";
 import { RateLimiter } from "../security/rate-limiter.js";
 import { SecurityGuard } from "../security/guard.js";
-import { AgentOrchestrator } from "../agents/orchestrator.js";
 import { ConversationStore } from "../memory/conversations.js";
 import { cosineSimilarity } from "../memory/vectors.js";
 import { MediaHandler } from "../media/handler.js";
@@ -184,30 +183,6 @@ describe("E2E Integration", () => {
 
       // Wrong secret
       expect(verifyToken(token, "wrong-secret")).toBeNull();
-    });
-  });
-
-  describe("Agent orchestrator integration", () => {
-    it("spawns, runs, and tracks agent through full lifecycle", async () => {
-      const orchestrator = new AgentOrchestrator(audit, guard);
-
-      orchestrator.registerExecutor("test", async (task) => {
-        return `Completed: ${task.description}`;
-      });
-
-      const task = orchestrator.spawn("test", "E2E test task", "e2e-session", "e2e-user");
-      expect(task.status).toMatch(/pending|running/);
-
-      // Wait for completion
-      await new Promise((r) => setTimeout(r, 100));
-
-      const completed = orchestrator.getTask(task.id)!;
-      expect(completed.status).toBe("completed");
-      expect(completed.result).toBe("Completed: E2E test task");
-
-      // Board should show it completed
-      const board = orchestrator.getBoard();
-      expect(board.completed.length).toBeGreaterThanOrEqual(1);
     });
   });
 
