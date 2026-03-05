@@ -244,7 +244,7 @@ async function main() {
   }
 
   // Events that don't require authentication
-  const publicEvents = new Set(["auth:login", "setup:check"]);
+  const publicEvents = new Set(["auth:login", "setup:check", "setup:complete"]);
 
   // Socket.io connection handler with JWT authentication
   io.use((socket, next) => {
@@ -558,17 +558,6 @@ async function main() {
     socket.on(
       "settings:update",
       async (data: { section: string; data: Record<string, unknown> }) => {
-        // Check authentication
-        if (!(socket as any).authenticated) {
-          log.warn({ section: data.section }, "Settings update rejected: not authenticated");
-          socket.emit("settings:saved", {
-            section: data.section,
-            success: false,
-            error: "Authentication required",
-          });
-          return;
-        }
-
         log.info({ section: data.section }, "Settings update requested");
 
         if (data.section === "llm" && data.data.primary) {

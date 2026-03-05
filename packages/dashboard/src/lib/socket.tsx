@@ -91,35 +91,55 @@ export function SocketProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     discoverGatewayPort().then((port) => {
-      const hostname = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      const url = `http://${hostname}:${port}`;
+      // Use explicit IP to avoid hostname resolution issues
+      const url = `http://127.0.0.1:${port}`;
       const token = getStoredToken();
 
       const s = io(url, {
         transports: ["websocket", "polling"],
         reconnection: true,
-        reconnectionAttempts: Infinity,
+        reconnectionAttempts: 5,
         reconnectionDelay: 1000,
-        reconnectionDelayMax: 10000,
+        reconnectionDelayMax: 5000,
         auth: token ? { token } : undefined,
+        forceNew: true,
       });
 
       s.on("connect", () => {
+        console.log("[Socket] Connected to gateway");
         setConnected(true);
-        // Check if authenticated by trying auth:login with empty PIN
-        // If we have a stored token, we assume we're authenticated
-        if (token) {
-          setAuthenticated(true);
-        }
+        // Auto-login without PIN (JWT secret is configured)
+        s.emit("auth:login", {}, (response: { token?: string; error?: string }) => {
+          console.log("[Socket] Auto-login response:", response);
+          if (response.token) {
+            storeToken(response.token);
+            setAuthenticated(true);
+          }
+        });
       });
+
+      s.on("connect_error", (err) => {
+        console.error("[Socket] Connection error:", err.message);
+      });
+
       s.on("disconnect", () => {
+        console.log("[Socket] Disconnected");
         setConnected(false);
         setAuthenticated(false);
       });
+
       s.on("auth:error", () => {
         setAuthenticated(false);
         localStorage.removeItem("gateway_token");
       });
+
+      s.on("auth:login", (data) => {
+        console.log("[Socket] Auth login response:", data);
+        if (data.token) {
+          setAuthenticated(true);
+        }
+      });
+
       setSocket(s);
       socketRef.current = s;
     });
