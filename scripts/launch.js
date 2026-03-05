@@ -243,9 +243,9 @@ async function main() {
       process.exit(1);
     }
 
-    // Start PM2
+    // Start PM2 using local installation
     try {
-      execSync("npx pm2 start ecosystem.config.cjs", { stdio: "inherit", shell: true });
+      execSync("./node_modules/.bin/pm2 start ecosystem.config.cjs", { stdio: "inherit", shell: true });
       console.log("\nPM2 services started.");
       console.log("Tip: Access the dashboard at", DASHBOARD_URL);
 
