@@ -50,7 +50,8 @@ export default function SettingsPage() {
   const [githubConnected, setGithubConnected] = useState(false);
 
   // Subsystems
-  const [playwrightEnabled, setPlaywrightEnabled] = useState(false);
+  const [playwrightEnabled, setPlaywrightEnabled] = useState(true);
+  const [hasJwtSecret, setHasJwtSecret] = useState(false);
   const [tailscaleConnected, setTailscaleConnected] = useState(false);
   const [tailscaleIp, setTailscaleIp] = useState<string | null>(null);
 
@@ -129,6 +130,11 @@ export default function SettingsPage() {
       } else if (data.section === "playwright") {
         const pwData = data.data as Record<string, unknown>;
         if (typeof pwData.enabled === "boolean") setPlaywrightEnabled(pwData.enabled);
+      } else if (data.section === "security") {
+        const secData = data.data as Record<string, string>;
+        if (secData.jwtSecret === "configured") {
+          setHasJwtSecret(true);
+        }
       }
     });
 
@@ -137,6 +143,7 @@ export default function SettingsPage() {
     socket.emit("settings:request", { section: "telegram" });
     socket.emit("settings:request", { section: "voice" });
     socket.emit("settings:request", { section: "playwright" });
+    socket.emit("settings:request", { section: "security" });
 
     // Tailscale status
     socket.on("tailscale:status", (data: { enabled: boolean; connected: boolean; ip?: string }) => {
@@ -478,7 +485,7 @@ export default function SettingsPage() {
               </div>
               <div>
                 <h3 className="text-lg font-light">Voice Settings</h3>
-                <p className="text-xs text-white/40">Configure Telegram voice replies</p>
+                <p className="text-xs text-white/40">Configure voice output for chat</p>
               </div>
             </div>
             {savedSection === "voice" && (
@@ -495,35 +502,6 @@ export default function SettingsPage() {
           )}
 
           <div className="space-y-5">
-            {/* Enable Voice Replies Toggle */}
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-white/70">Voice Replies</p>
-                <p className="text-xs text-white/40">Respond with voice notes in Telegram</p>
-              </div>
-              <button
-                onClick={() => {
-                  const newValue = !voiceEnabled;
-                  voiceSettingsLoadingRef.current = true;
-                  setVoiceEnabled(newValue);
-                  socket?.emit("voice:settings:update", { enabled: newValue });
-                  showSaved("voice");
-                  // Allow socket updates again after a short delay
-                  setTimeout(() => { voiceSettingsLoadingRef.current = false; }, 500);
-                }}
-                disabled={!connected}
-                className={`relative w-12 h-6 rounded-full transition-colors ${
-                  voiceEnabled ? "bg-purple-500" : "bg-white/10"
-                } disabled:opacity-50`}
-              >
-                <span
-                  className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                    voiceEnabled ? "translate-x-7" : "translate-x-1"
-                  }`}
-                />
-              </button>
-            </div>
-
             {/* Voice Provider - GTTS only for now */}
             <div>
               <label className="block text-xs text-white/40 mb-2">Voice Provider</label>
@@ -576,29 +554,6 @@ export default function SettingsPage() {
               </select>
             </div>
 
-            {/* Voice Speed */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs text-white/40">Voice Speed</label>
-                <span className="text-xs text-purple-400">{voiceSpeed.toFixed(1)}x</span>
-              </div>
-              <input
-                type="range"
-                min="0.5"
-                max="2.0"
-                step="0.1"
-                value={voiceSpeed}
-                onChange={(e) => setVoiceSpeed(parseFloat(e.target.value))}
-                disabled={!connected}
-                className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer disabled:opacity-50 accent-purple-500"
-              />
-              <div className="flex justify-between text-[10px] text-white/30 mt-1">
-                <span>0.5x (Slow)</span>
-                <span>1.0x (Normal)</span>
-                <span>2.0x (Fast)</span>
-              </div>
-            </div>
-
             {/* Test Button */}
             <div className="flex items-center gap-4 pt-2">
               <button
@@ -608,7 +563,6 @@ export default function SettingsPage() {
                   socket?.emit("voice:settings:update", {
                     provider: voiceProvider,
                     voiceId: voiceId,
-                    voiceSpeed: voiceSpeed,
                   });
                   showSaved("voice");
                   // Wait a bit then trigger test
@@ -836,6 +790,9 @@ export default function SettingsPage() {
           <p className="text-xs text-white/30 mb-6">
             This token is used to sign JWT authentication tokens. Minimum 16 characters.
           </p>
+          {hasJwtSecret && (
+            <p className="text-[10px] text-emerald-400 mb-4">Authentication token is set (enter new value to update)</p>
+          )}
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -848,6 +805,7 @@ export default function SettingsPage() {
                   data: { jwtSecret: newToken },
                 });
                 showSaved("authToken");
+                setHasJwtSecret(true);
                 (e.target as HTMLFormElement).reset();
               }
             }}
@@ -859,7 +817,7 @@ export default function SettingsPage() {
                 type="password"
                 name="newAuthToken"
                 minLength={16}
-                placeholder="At least 16 characters"
+                placeholder={hasJwtSecret ? "Enter new token to update" : "At least 16 characters"}
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-violet-500/50 transition-colors"
               />
             </div>

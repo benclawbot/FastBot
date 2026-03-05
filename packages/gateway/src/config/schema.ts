@@ -129,7 +129,7 @@ export const voiceConfigSchema = z
 export const playwrightConfigSchema = z
   .object({
     /** Enable Playwright for web automation */
-    enabled: z.boolean().default(false),
+    enabled: z.boolean().default(true),
     /** Browser to use */
     browser: z.enum(["chromium", "firefox", "webkit"]).default("chromium"),
     /** Headless mode */

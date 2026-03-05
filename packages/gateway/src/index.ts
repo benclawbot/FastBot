@@ -609,10 +609,19 @@ async function main() {
         socket.emit("settings:data", {
           section: "playwright",
           data: {
-            enabled: config.playwright?.enabled ?? false,
+            enabled: config.playwright?.enabled ?? true,
             browser: config.playwright?.browser ?? "chromium",
             headless: config.playwright?.headless ?? true,
             timeoutMs: config.playwright?.timeoutMs ?? 30000,
+          },
+        });
+      } else if (data.section === "security") {
+        // Check if JWT secret exists (from .env)
+        const hasJwt = !!(config.security.jwtSecret && !config.security.jwtSecret.startsWith("YOUR_"));
+        socket.emit("settings:data", {
+          section: "security",
+          data: {
+            jwtSecret: hasJwt ? "configured" : "",
           },
         });
       }
