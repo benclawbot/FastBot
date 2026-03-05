@@ -617,23 +617,27 @@ async function main() {
           const telegramData = data.data as Record<string, unknown>;
           const botToken = telegramData.botToken as string | undefined;
 
-          // Validate bot token if provided
+          // Validate bot token if provided and not empty
           if (botToken && botToken !== "") {
-            // Check for placeholder
+            // Check format (should be like 123456789:ABCdefGHIjklMNOpqrsTUVwxyz)
+            // Only validate if it's not the existing placeholder in config
+            const existingToken = ctx.config.telegram.botToken || "";
+            if (botToken !== existingToken && !botToken.startsWith("YOUR_")) {
+              if (!/^\d+:[A-Za-z0-9_-]+$/.test(botToken)) {
+                socket.emit("settings:saved", {
+                  section: "telegram",
+                  success: false,
+                  error: "Invalid Telegram bot token format",
+                });
+                return;
+              }
+            }
+            // Don't save if it's still a placeholder
             if (botToken.startsWith("YOUR_")) {
               socket.emit("settings:saved", {
                 section: "telegram",
                 success: false,
                 error: "Please enter a real Telegram bot token",
-              });
-              return;
-            }
-            // Check format (should be like 123456789:ABCdefGHIjklMNOpqrsTUVwxyz)
-            if (!/^\d+:[A-Za-z0-9_-]+$/.test(botToken)) {
-              socket.emit("settings:saved", {
-                section: "telegram",
-                success: false,
-                error: "Invalid Telegram bot token format",
               });
               return;
             }
@@ -650,7 +654,22 @@ async function main() {
           // Persist to config file
           saveConfig(ctx.config);
 
-          log.info("Telegram config updated - restart gateway to apply");
+          log.info("Telegram config updated - restarting bot");
+
+          // Restart the Telegram bot with new config
+          if (telegramBot) {
+            telegramBot.stop();
+          }
+          if (ctx.config.telegram.botToken && ctx.config.telegram.botToken !== "") {
+            telegramBot = new TelegramBot(ctx);
+            ctx.telegram = telegramBot;
+            telegramBot.start().catch((err) => {
+              log.error({ err }, "Failed to start Telegram bot");
+            });
+          } else {
+            telegramBot = null;
+            ctx.telegram = null;
+          }
 
           socket.emit("settings:saved", {
             section: "telegram",
