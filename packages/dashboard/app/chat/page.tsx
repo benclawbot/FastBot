@@ -341,7 +341,7 @@ export default function ChatPage() {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-6 py-6">
-        <div className="max-w-3xl mx-auto space-y-5">
+        <div className="w-full space-y-5">
           {messages.length === 0 && (
             <div className="text-center py-20">
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center mx-auto mb-5 shadow-lg shadow-emerald-500/20">
@@ -388,7 +388,7 @@ export default function ChatPage() {
 
       {/* Input */}
       <div className="border-t border-white/5 px-6 py-4 shrink-0 bg-[#0a0a0a]">
-        <form onSubmit={handleSubmit} className="max-w-3xl mx-auto relative">
+        <form onSubmit={handleSubmit} className="w-full relative">
           {/* Command suggestions dropdown */}
           {showSuggestions && filteredCommands.length > 0 && (
             <div
@@ -557,7 +557,7 @@ function MessageBubble({
       )}
 
       <div
-        className={`max-w-[75%] rounded-2xl px-5 py-4 ${
+        className={`max-w-[85%] rounded-2xl px-5 py-4 ${
           role === "user"
             ? "bg-white/10 border border-white/10 text-white"
             : "bg-white/[0.03] border border-white/[0.06] text-white/90"
