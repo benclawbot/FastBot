@@ -18,6 +18,8 @@ Ultra-secure personal AI gateway. Runs on Android (Termux) or any Node.js server
 - **Sandboxed Browser** - Playwright-based web automation (included)
 - **Tailscale Integration** - Secure remote access
 - **OAuth Integration** - Google, Microsoft, GitHub authentication
+- **Google Sheets Integration** - Read, write, and create spreadsheets
+- **Google Drive Integration** - Full file management (list, download, upload, create folders, delete)
 - **GitHub Integration** - Create commits, browse repos, manage issues and PRs
 - **OCR & Document Understanding** - Extract text from images (Tesseract.js), PDFs, and Office documents
 - **File Upload with LLM Processing** - Automatically process uploaded files with AI analysis
@@ -72,7 +74,8 @@ Ultra-secure personal AI gateway. Runs on Android (Termux) or any Node.js server
 │  ├── Telegram bot command handler                         │
 │  ├── LLM router (OpenAI, Anthropic, Google, Ollama)    │
 │  ├── Skills manager for Claude Code skills              │
-│  ├── Agent orchestrator                                  │
+│  ├── CrewAI orchestration for multi-agent workflows     │
+│  ├── Google Sheets & Drive API client                   │
 │  ├── QMD vector search for memories                      │
 │  ├── OCR & document parsing (Tesseract, pdf-parse)      │
 │  └── Security: SSRF, path traversal, rate limiting      │
