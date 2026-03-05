@@ -178,12 +178,20 @@ function ensurePM2Installed() {
   } catch {
     console.log("Installing PM2...");
     try {
-      execSync("pnpm add -g pm2", { stdio: "inherit" });
-      console.log("PM2 installed successfully.");
+      // Use npx to run pm2 directly if not installed globally
+      execSync("npx pm2 --version", { stdio: "inherit" });
+      console.log("PM2 is available via npx.");
       return true;
     } catch {
-      console.log("Warning: Could not install PM2 automatically.");
-      return false;
+      console.log("Installing PM2 via npm...");
+      try {
+        execSync("npm install -g pm2", { stdio: "inherit" });
+        console.log("PM2 installed successfully.");
+        return true;
+      } catch {
+        console.log("Warning: Could not install PM2 automatically.");
+        return false;
+      }
     }
   }
 }
@@ -222,7 +230,7 @@ async function main() {
 
     // Clean up any stale PM2 state
     try {
-      execSync("pm2 kill 2>/dev/null || true", { stdio: "inherit" });
+      execSync("npx pm2 kill 2>/dev/null || true", { stdio: "inherit" });
     } catch {}
 
     // Ensure build exists
@@ -237,7 +245,7 @@ async function main() {
 
     // Start PM2
     try {
-      execSync("pm2 start ecosystem.config.cjs", { stdio: "inherit", shell: true });
+      execSync("npx pm2 start ecosystem.config.cjs", { stdio: "inherit", shell: true });
       console.log("\nPM2 services started.");
       console.log("Tip: Access the dashboard at", DASHBOARD_URL);
 
