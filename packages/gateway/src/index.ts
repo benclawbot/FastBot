@@ -479,6 +479,11 @@ async function main() {
         const jwtSecret = generateJwtSecret();
         config.security.jwtSecret = jwtSecret;
 
+        // Initialize llm.primary if not exists
+        if (!config.llm.primary) {
+          (config.llm as any).primary = { provider: "anthropic", model: "" };
+        }
+
         if (data.telegramToken) config.telegram.botToken = data.telegramToken;
         if (data.llmProvider) config.llm.primary.provider = data.llmProvider as any;
         if (data.llmModel) config.llm.primary.model = data.llmModel;
