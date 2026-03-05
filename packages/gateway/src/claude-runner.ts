@@ -85,8 +85,11 @@ export async function* runClaudeCode(
     prompt,
   ];
 
+  // Disable slash commands/skills to bypass brainstorming workflow
+  args.push("--disable-slash-commands");
+
   // Force tool use via system prompt
-  const systemPrompt = `IMPORTANT: When asked to build/create/make anything, you MUST use the Write tool to create actual files. Do NOT just describe the code. Create the files in ./projects/ directory. Use Bash to run commands like npm install.`;
+  const systemPrompt = `When asked to build/create/make anything, use Write tool to create files in ./projects/ directory. Use Bash to run commands. Just build it, don't ask questions or use brainstorming.`;
   args.push("--append-system-prompt", systemPrompt);
 
   // Add optional flags
