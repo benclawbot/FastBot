@@ -10,6 +10,7 @@ interface LlmSettings {
   model: string;
   apiKey: string;
   baseUrl: string;
+  hasApiKey: boolean; // Track if API key exists in .env
 }
 
 const PROVIDER_MODELS: Record<string, string[]> = {
@@ -35,10 +36,12 @@ export default function SettingsPage() {
     model: "",
     apiKey: "",
     baseUrl: "",
+    hasApiKey: false,
   });
 
   // Telegram
   const [telegramToken, setTelegramToken] = useState("");
+  const [hasTelegramToken, setHasTelegramToken] = useState(false);
   const [approvedUsers, setApprovedUsers] = useState("");
 
   // OAuth Connections
@@ -89,17 +92,28 @@ export default function SettingsPage() {
       if (data.section === "llm") {
         const llmData = data.data.primary as Record<string, string> | undefined;
         if (llmData) {
+          // If apiKey is "configured", keep existing value (don't overwrite)
+          const apiKey = llmData.apiKey === "configured" ? "" : (llmData.apiKey || "");
+          const hasApiKey = llmData.apiKey === "configured";
           setLlm(prev => ({
             ...prev,
             provider: llmData.provider || prev.provider,
             model: llmData.model || prev.model,
             baseUrl: llmData.baseUrl || prev.baseUrl,
+            apiKey: apiKey,
+            hasApiKey: hasApiKey || prev.hasApiKey,
           }));
         }
       } else if (data.section === "telegram") {
         const tgData = data.data as Record<string, string>;
-        if (tgData.botToken && tgData.botToken !== "********") {
+        // If "configured", keep empty but track that it exists
+        if (tgData.botToken && tgData.botToken !== "configured") {
           setTelegramToken(tgData.botToken);
+        }
+        // Track if token exists for UI display
+        if (tgData.botToken === "configured") {
+          setTelegramToken("");
+          setHasTelegramToken(true);
         }
         if (tgData.approvedUsers) {
           setApprovedUsers(tgData.approvedUsers);
@@ -359,11 +373,14 @@ export default function SettingsPage() {
             {llm.provider !== "ollama" && llm.provider !== "" && (
               <div>
                 <label className="block text-xs text-white/40 mb-2">API Key</label>
+                {llm.hasApiKey && (
+                  <p className="text-[10px] text-emerald-400 mb-2">API key is set (enter new value to update)</p>
+                )}
                 <input
                   type="password"
                   value={llm.apiKey}
                   onChange={(e) => setLlm({ ...llm, apiKey: e.target.value })}
-                  placeholder="sk-..."
+                  placeholder={llm.hasApiKey ? "Enter new key to update" : "sk-..."}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-emerald-500/50 transition-colors"
                 />
                 <p className="text-[10px] text-white/30 mt-2">Stored encrypted with AES-256-GCM</p>
@@ -421,11 +438,14 @@ export default function SettingsPage() {
           <form onSubmit={handleSaveTelegram} className="space-y-4">
             <div>
               <label className="block text-xs text-white/40 mb-2">Bot Token</label>
+              {hasTelegramToken && (
+                <p className="text-[10px] text-emerald-400 mb-2">Token is set (enter new value to update)</p>
+              )}
               <input
                 type="password"
                 value={telegramToken}
                 onChange={(e) => setTelegramToken(e.target.value)}
-                placeholder="123456:ABC-DEF..."
+                placeholder={hasTelegramToken ? "Enter new token to update" : "123456:ABC-DEF..."}
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 transition-colors"
               />
             </div>
