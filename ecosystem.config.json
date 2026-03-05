@@ -1,0 +1,36 @@
+{
+  "apps": [
+    {
+      "name": "gateway",
+      "script": "dist/index.js",
+      "cwd": "/home/tom/FastBot/packages/gateway",
+      "watch": false,
+      "env": {
+        "NODE_ENV": "production"
+      },
+      "env_file": "/home/tom/FastBot/.env"
+    },
+    {
+      "name": "dashboard",
+      "script": "node_modules/next/dist/bin/next",
+      "args": "start",
+      "cwd": "/home/tom/FastBot/packages/dashboard",
+      "watch": false,
+      "env": {
+        "NODE_ENV": "production"
+      },
+      "env_file": "/home/tom/FastBot/.env"
+    },
+    {
+      "name": "orchestration",
+      "script": "src/scb_orchestration/server.py",
+      "interpreter": "python3",
+      "cwd": "/home/tom/FastBot/packages/orchestration",
+      "watch": false,
+      "env": {
+        "PYTHONPATH": "src"
+      },
+      "env_file": "/home/tom/FastBot/.env"
+    }
+  ]
+}

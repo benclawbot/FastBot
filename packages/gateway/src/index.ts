@@ -1,3 +1,7 @@
+import dotenv from "dotenv";
+// Load .env file from parent directory (gateway is in packages/gateway)
+dotenv.config({ path: join("..", "..", ".env") });
+
 import { createServer } from "node:http";
 import { createServer as createNetServer } from "node:net";
 import { mkdirSync, existsSync } from "node:fs";
