@@ -22,7 +22,7 @@ export default function Home() {
       socket.emit("setup:check");
       socket.on("setup:status", (data: { needsSetup: boolean; isConfigured: boolean }) => {
         if (data.needsSetup && !data.isConfigured) {
-          router.replace("/settings");
+          router.replace("/setup");
         }
       });
       return () => {
