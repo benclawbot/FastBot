@@ -1,12 +1,12 @@
 # FastBot
 
-Ultra-secure personal AI gateway inspired by OpenClaw. Runs on Android (Termux) or any Node.js server.
+Ultra-secure personal AI gateway. Runs on Android (Termux) or any Node.js server.
 
 ## Features
 
-- **Telegram Bot** - Control your AI agent via Telegram (text and voice)
+- **Telegram Bot** - Control your AI agent via Telegram (text, voice, photos, and documents)
 - **Multi-Provider LLM Router** - OpenAI, Anthropic, Google, Ollama, MiniMax, Groq, DeepSeek, and more
-- **Web Dashboard** - Next.js PWA for mission control
+- **Web Dashboard** - Next.js 14 PWA for mission control
 - **Setup Wizard** - First-run guided configuration (PIN, Telegram, LLM)
 - **Skills System** - Install Claude Code compatible skills for AI agents
 - **Agents Management** - Create and manage AI agents with persistent memories
@@ -15,10 +15,13 @@ Ultra-secure personal AI gateway inspired by OpenClaw. Runs on Android (Termux) 
 - **Workflow Automation** - Create and run custom workflow templates
 - **QMD Search** - Vector search across memories, chat history, and agent files
 - **RCA Scheduler** - Automated root cause analysis and lessons learned
+- **Self-Improvement** - Automated analysis of agent performance and generation of improvements
 - **Sandboxed Browser** - Playwright-based web automation (included)
 - **Tailscale Integration** - Secure remote access
 - **OAuth Integration** - Google, Microsoft, GitHub authentication
 - **GitHub Integration** - Create commits, browse repos, manage issues and PRs
+- **OCR & Document Understanding** - Extract text from images (Tesseract.js), PDFs, and Office documents
+- **File Upload with LLM Processing** - Automatically process uploaded files with AI analysis
 - **Audit Logging** - Full activity tracking
 - **Security Hardened** - SSRF blocking, path traversal prevention, rate limiting
 - **Voice Input** - Whisper transcription for voice notes (Telegram & Dashboard)
@@ -64,7 +67,7 @@ Ultra-secure personal AI gateway inspired by OpenClaw. Runs on Android (Termux) 
 ![Status](docs/images/dashboard-status.png)
 
 ### Cron Jobs
-*Coming soon - automated self-improvement and codebase indexing*
+![Cron Jobs](docs/images/dashboard-cron.png)
 
 ## Architecture
 
@@ -79,6 +82,7 @@ Ultra-secure personal AI gateway inspired by OpenClaw. Runs on Android (Termux) 
 │  ├── Skills manager for Claude Code skills              │
 │  ├── Agent orchestrator                                  │
 │  ├── QMD vector search for memories                      │
+│  ├── OCR & document parsing (Tesseract, pdf-parse)      │
 │  └── Security: SSRF, path traversal, rate limiting      │
 ├─────────────────────────────────────────────────────────────┤
 │  packages/dashboard   — Next.js 14 PWA                    │
@@ -475,6 +479,28 @@ Voice settings in dashboard:
 - Choose language/voice
 - Adjust voice speed (0.5x - 2.0x)
 - Test button to preview voice
+
+## OCR & Document Understanding
+
+FastBot can extract text from images and documents using OCR and document parsing:
+
+**Supported Formats:**
+- **Images:** jpeg, png, gif, webp, bmp, tiff (via Tesseract.js)
+- **PDF:** Text extraction via pdf-parse
+- **Office Documents:** DOCX, XLSX, PPTX (via mammoth and xlsx)
+
+**How it works:**
+1. Upload an image or document via Telegram or the dashboard
+2. FastBot automatically extracts the text content
+3. The extracted text is processed by the LLM and summarized
+4. Results are displayed in the chat and stored in the media library
+
+**Use cases:**
+- Extract text from scanned documents
+- Read text from screenshots
+- Parse PDF reports
+- Analyze Excel spreadsheets
+- Extract content from Word documents
 
 ## Cron Jobs
 
