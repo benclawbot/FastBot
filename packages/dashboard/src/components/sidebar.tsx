@@ -13,6 +13,7 @@ import {
   Settings,
   Users,
   Wrench,
+  Clock,
 } from "lucide-react";
 
 const navItems = [
@@ -23,6 +24,7 @@ const navItems = [
   { href: "/workflows", label: "Workflows", icon: Zap },
   { href: "/skills", label: "Skills", icon: Wrench },
   { href: "/media", label: "Media", icon: Folder },
+  { href: "/cron", label: "Cron", icon: Clock },
   { href: "/usage", label: "Usage", icon: BarChart3 },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
