@@ -126,6 +126,33 @@ export class GoogleSheetsClient {
   }
 
   /**
+   * Create a new spreadsheet.
+   * @param title The title for the new spreadsheet
+   * @returns The created spreadsheet ID and URL
+   */
+  async createSpreadsheet(title: string): Promise<{ spreadsheetId: string; spreadsheetUrl: string }> {
+    try {
+      const { data } = await this.sheets.spreadsheets.create({
+        requestBody: {
+          properties: {
+            title,
+          },
+        },
+      });
+
+      log.info({ spreadsheetId: data.spreadsheetId, title }, "Spreadsheet created");
+
+      return {
+        spreadsheetId: data.spreadsheetId ?? "",
+        spreadsheetUrl: data.spreadsheetUrl ?? "",
+      };
+    } catch (error) {
+      log.error({ err: error, title }, "Failed to create spreadsheet");
+      throw error;
+    }
+  }
+
+  /**
    * Append a row to a spreadsheet.
    * @param spreadsheetId The ID of the spreadsheet
    * @param range The range to append to (e.g., "Sheet1!A:A")

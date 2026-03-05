@@ -34,7 +34,7 @@ import { textToSpeech } from "./voice/tts.js";
 import { getBotSystemPrompt } from "./bot/context.js";
 import { verifyToken, generateJwtSecret, issueToken } from "./security/jwt.js";
 import * as SkillsManager from "./skills/manager.js";
-import { GoogleClient } from "./integrations/google/index.js";
+import { GoogleClient, GoogleSheetsClient, GoogleDriveClient } from "./integrations/google/index.js";
 import { MicrosoftClient } from "./integrations/microsoft.js";
 import { GitHubClient } from "./integrations/github.js";
 import type { AppConfig } from "./config/schema.js";
@@ -858,6 +858,95 @@ async function main() {
       log.info("Google OAuth disconnected");
     });
 
+    // Google Sheets handlers
+    socket.on("sheets:list", async (data, callback) => {
+      try {
+        const refreshToken = keyStore.get("oauth_google_refresh_token");
+        if (!refreshToken) {
+          callback({ error: "Google not connected" });
+          return;
+        }
+        const googleConfig = config.google;
+        if (!googleConfig?.clientId || !googleConfig?.clientSecret) {
+          callback({ error: "Google not configured" });
+          return;
+        }
+        const client = new GoogleClient(googleConfig.clientId, googleConfig.clientSecret, undefined, refreshToken);
+        const sheetsClient = new GoogleSheetsClient(client.getAuth());
+        const spreadsheets = await sheetsClient.listSpreadsheets();
+        callback({ data: spreadsheets });
+      } catch (err) {
+        log.error({ err }, "Failed to list spreadsheets");
+        callback({ error: "Failed to list spreadsheets" });
+      }
+    });
+
+    socket.on("sheets:read", async (data, callback) => {
+      try {
+        const refreshToken = keyStore.get("oauth_google_refresh_token");
+        if (!refreshToken) {
+          callback({ error: "Google not connected" });
+          return;
+        }
+        const googleConfig = config.google;
+        if (!googleConfig?.clientId || !googleConfig?.clientSecret) {
+          callback({ error: "Google not configured" });
+          return;
+        }
+        const client = new GoogleClient(googleConfig.clientId, googleConfig.clientSecret, undefined, refreshToken);
+        const sheetsClient = new GoogleSheetsClient(client.getAuth());
+        const result = await sheetsClient.readRange(data.spreadsheetId, data.range);
+        callback({ data: result });
+      } catch (err) {
+        log.error({ err }, "Failed to read sheet");
+        callback({ error: "Failed to read sheet" });
+      }
+    });
+
+    socket.on("sheets:write", async (data, callback) => {
+      try {
+        const refreshToken = keyStore.get("oauth_google_refresh_token");
+        if (!refreshToken) {
+          callback({ error: "Google not connected" });
+          return;
+        }
+        const googleConfig = config.google;
+        if (!googleConfig?.clientId || !googleConfig?.clientSecret) {
+          callback({ error: "Google not configured" });
+          return;
+        }
+        const client = new GoogleClient(googleConfig.clientId, googleConfig.clientSecret, undefined, refreshToken);
+        const sheetsClient = new GoogleSheetsClient(client.getAuth());
+        await sheetsClient.writeRange(data.spreadsheetId, data.range, data.values);
+        callback({ success: true });
+      } catch (err) {
+        log.error({ err }, "Failed to write to sheet");
+        callback({ error: "Failed to write to sheet" });
+      }
+    });
+
+    socket.on("sheets:create", async (data, callback) => {
+      try {
+        const refreshToken = keyStore.get("oauth_google_refresh_token");
+        if (!refreshToken) {
+          callback({ error: "Google not connected" });
+          return;
+        }
+        const googleConfig = config.google;
+        if (!googleConfig?.clientId || !googleConfig?.clientSecret) {
+          callback({ error: "Google not configured" });
+          return;
+        }
+        const client = new GoogleClient(googleConfig.clientId, googleConfig.clientSecret, undefined, refreshToken);
+        const sheetsClient = new GoogleSheetsClient(client.getAuth());
+        const result = await sheetsClient.createSpreadsheet(data.title);
+        callback({ data: result });
+      } catch (err) {
+        log.error({ err }, "Failed to create sheet");
+        callback({ error: "Failed to create sheet" });
+      }
+    });
+
     // Start Microsoft OAuth flow
     socket.on("oauth:microsoft:start", async (data?: { origin?: string }) => {
       const msConfig = config.microsoft;
@@ -1406,73 +1495,6 @@ async function main() {
       }
     });
 
-    // ── Workflows ──
-    socket.on("workflows:list", async () => {
-      try {
-        // Get available workflow templates
-        const templates = [
-          {
-            id: "code-review",
-            name: "Code Review",
-            description: "Automated code review with AI analysis",
-            steps: ["Fetch code", "Run linters", "Analyze with AI", "Generate report"],
-            category: "development"
-          },
-          {
-            id: "data-analysis",
-            name: "Data Analysis",
-            description: "Analyze datasets and generate insights",
-            steps: ["Load data", "Clean data", "Run analysis", "Create visualizations"],
-            category: "analytics"
-          },
-          {
-            id: "content-generation",
-            name: "Content Generation",
-            description: "Generate blog posts, social media, and marketing content",
-            steps: ["Research topic", "Generate outline", "Write content", "SEO optimization"],
-            category: "marketing"
-          },
-          {
-            id: "bug-analysis",
-            name: "Bug Analysis",
-            description: "Analyze error logs and suggest fixes",
-            steps: ["Collect logs", "Analyze errors", "Identify root cause", "Suggest solutions"],
-            category: "development"
-          }
-        ];
-        socket.emit("workflows:list", { templates });
-      } catch (err) {
-        socket.emit("workflows:list", { error: String(err) });
-      }
-    });
-
-    socket.on("workflows:run", async (data: { workflowId: string; inputs?: Record<string, string> }) => {
-      try {
-        // Start orchestration with the workflow request
-        const request = `Run workflow: ${data.workflowId} with inputs: ${JSON.stringify(data.inputs || {})}`;
-        const response = await fetch("http://127.0.0.1:18790/start", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ request }),
-        });
-        const result = await response.json() as Record<string, unknown>;
-        socket.emit("workflows:started", { workflowId: data.workflowId, ...result });
-      } catch (err) {
-        socket.emit("workflows:error", { error: String(err) });
-      }
-    });
-
-    socket.on("workflows:history", async () => {
-      try {
-        // Get kanban board as history
-        const response = await fetch("http://127.0.0.1:18790/kanban");
-        const data = await response.json();
-        socket.emit("workflows:history", { history: data });
-      } catch (err) {
-        socket.emit("workflows:history", { error: String(err) });
-      }
-    });
-
     // ── QMD Search ──
     socket.on("qmd:search", async (data: { query: string; sources?: string[] }) => {
       if (!ctx.qmd) {
@@ -1681,56 +1703,6 @@ async function main() {
       } catch (err) {
         log.error({ err }, "File upload failed");
         socket.emit("file:uploaded", { error: String(err) });
-      }
-    });
-
-    // ── Media List ──
-    socket.on("media:list", async () => {
-      try {
-        const files = mediaHandler.list();
-        socket.emit("media:files", { files });
-      } catch (err) {
-        log.error({ err }, "Failed to list media");
-        socket.emit("media:files", { error: String(err), files: [] });
-      }
-    });
-
-    // ── Media Search ──
-    socket.on("media:search", async (data: { query: string }) => {
-      try {
-        const files = mediaHandler.search(data.query);
-        socket.emit("media:search-results", { files, query: data.query });
-      } catch (err) {
-        log.error({ err }, "Failed to search media");
-        socket.emit("media:search-results", { error: String(err), files: [] });
-      }
-    });
-
-    // ── Media Get ──
-    socket.on("media:get", async (data: { id: string }) => {
-      try {
-        const file = mediaHandler.get(data.id);
-        if (file) {
-          // Read file content as base64
-          const content = file.data ? Buffer.from(file.data).toString("base64") : null;
-          socket.emit("media:file", { file: { ...file, content } });
-        } else {
-          socket.emit("media:file", { error: "File not found" });
-        }
-      } catch (err) {
-        log.error({ err }, "Failed to get media");
-        socket.emit("media:file", { error: String(err) });
-      }
-    });
-
-    // ── Media Delete ──
-    socket.on("media:delete", async (data: { id: string }) => {
-      try {
-        const success = mediaHandler.delete(data.id);
-        socket.emit("media:deleted", { success, id: data.id });
-      } catch (err) {
-        log.error({ err }, "Failed to delete media");
-        socket.emit("media:deleted", { success: false, error: String(err) });
       }
     });
 
@@ -1956,9 +1928,6 @@ async function getSystemStatus(ctx: GatewayContext) {
     ? "active"
     : "inactive";
 
-  // Check Media status
-  const mediaStatus = "active"; // Media is always available
-
   return {
     gateway: "online",
     sessions: ctx.sessions.listActive().length,
@@ -1971,7 +1940,6 @@ async function getSystemStatus(ctx: GatewayContext) {
       tailscale: tailscaleStatus,
       voice: voiceStatus,
       auth: authStatus,
-      media: mediaStatus,
     },
   };
 }

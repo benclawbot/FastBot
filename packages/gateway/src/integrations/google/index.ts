@@ -3,6 +3,9 @@
  * Uses googleapis SDK for authenticated access.
  */
 import { google, type calendar_v3 } from "googleapis";
+
+// Type for OAuth2 client
+type OAuth2Client = InstanceType<typeof google.auth.OAuth2>;
 import { createChildLogger } from "../../logger/index.js";
 
 const log = createChildLogger("integrations:google");
@@ -128,6 +131,13 @@ export class GoogleClient {
     const { tokens } = await this.auth.getToken(code);
     this.auth.setCredentials(tokens);
     return tokens.refresh_token ?? undefined;
+  }
+
+  /**
+   * Get the OAuth2 client for use with other Google services.
+   */
+  getAuth(): OAuth2Client {
+    return this.auth;
   }
 }
 
