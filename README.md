@@ -16,6 +16,9 @@ npm install -g pnpm
 # Install Python (for orchestration)
 sudo apt-get install python3 python3-pip python3-venv
 
+# Install canvas dependencies (for image processing/OCR)
+sudo apt-get install libcairo2-dev libjpeg-dev libpango1.0-dev libgif-dev build-essential g++
+
 # Clone and run
 git clone https://github.com/benclawbot/FastBot.git
 cd FastBot
