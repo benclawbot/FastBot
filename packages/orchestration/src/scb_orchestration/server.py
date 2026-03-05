@@ -166,6 +166,47 @@ class OrchestrationHandler(BaseHTTPRequestHandler):
                 "phase": self.flow.state.current_phase,
             })
 
+        elif path == '/task/delete':
+            # Delete a task by ID
+            task_id = data.get("task_id", "")
+
+            if not self.flow:
+                self.flow = create_flow(self.persistence)
+
+            state = self.persistence.load_state()
+            deleted = False
+
+            # Find and remove the task from any column
+            for col_name, col_tasks in list(state.kanban.items()):
+                state.kanban[col_name] = [t for t in col_tasks if t.id != task_id]
+                if len(state.kanban[col_name]) < len(col_tasks):
+                    deleted = True
+                    break
+
+            if deleted:
+                self.persistence.save_state(state)
+                self._send_json(200, {"status": "task_deleted", "task_id": task_id})
+            else:
+                self._send_json(404, {"error": "Task not found"})
+
+        elif path == '/tasks/clear-done':
+            # Clear all tasks from the Done column
+            if not self.flow:
+                self.flow = create_flow(self.persistence)
+
+            # Count done tasks
+            done_count = sum(1 for t in self.flow.state.kanban if t.status == "Done")
+
+            # Remove tasks with Done status
+            self.flow.state.kanban = [t for t in self.flow.state.kanban if t.status != "Done"]
+
+            self.persistence.save_state(self.flow.state)
+
+            self._send_json(200, {
+                "status": "done_cleared",
+                "count": done_count,
+            })
+
         else:
             self._send_json(404, {"error": "Not found"})
 

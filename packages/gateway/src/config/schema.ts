@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const telegramConfigSchema = z.object({
-  botToken: z.string().min(1),
+  botToken: z.string().min(1).optional(),
   /** Telegram user IDs that are pre-approved (skip approval flow) */
   approvedUsers: z.array(z.number()).default([]),
   /** Rate limit: max requests per minute per user */

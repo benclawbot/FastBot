@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import { createServer as createNetServer } from "node:net";
 import { mkdirSync, existsSync } from "node:fs";
+import { join } from "node:path";
 import { Server as SocketServer } from "socket.io";
 import { loadConfig, saveConfig } from "./config/loader.js";
 import { DATA_DIR } from "./config/defaults.js";
@@ -16,6 +17,7 @@ import { PlaywrightBridge } from "./playwright/bridge.js";
 import { TailscaleManager } from "./tailscale/manager.js";
 import { AgentsManager } from "./agents/manager.js";
 import { RcaScheduler } from "./agents/rca-scheduler.js";
+import { SelfImprovementScheduler } from "./agents/self-improvement.js";
 import {
   shouldTriggerOrchestration,
   extractOrchestrationRequest,
@@ -94,14 +96,22 @@ async function main() {
 
   // Create HTTP + Socket.io server
   const httpServer = createServer();
+  const dashboardPort = config.server.dashboardPort;
   const io = new SocketServer(httpServer, {
     cors: {
       origin: [
-        `http://${config.server.host}:${config.server.dashboardPort}`,
-        `http://localhost:${config.server.dashboardPort}`,
-        `http://127.0.0.1:${config.server.dashboardPort}`,
+        `http://localhost:${dashboardPort}`,
+        `http://127.0.0.1:${dashboardPort}`,
+        `http://0.0.0.0:${dashboardPort}`,
+        `http://${config.server.publicHost}:${dashboardPort}`,
+        // Allow any localhost variant
+        /^http:\/\/localhost:\d+$/,
+        /^http:\/\/127\.0\.0\.1:\d+$/,
+        // Allow Tailscale IPs
+        /^http:\/\/100\.\d+\.\d+\.\d+:\d+$/,
       ],
       methods: ["GET", "POST"],
+      credentials: true,
     },
     pingInterval: 25_000,
     pingTimeout: 10_000,
@@ -175,19 +185,45 @@ async function main() {
   // Initialize Agents Manager
   let agentsManager: AgentsManager | null = null;
   let rcaScheduler: RcaScheduler | null = null;
+  let selfImprovementScheduler: SelfImprovementScheduler | null = null;
+  const projectRoot = process.cwd();
+
   if (config.agents) {
     agentsManager = new AgentsManager(config.agents);
     await agentsManager.initializeAgents();
     ctx.agents = agentsManager;
 
     // Initialize QMD (Query Memory Data) store
-    ctx.qmd = new QmdStore(db, null, config.agents.directory);
+    ctx.qmd = new QmdStore(db, null, config.agents.directory, join(projectRoot, "data", "codebase-index.json"));
     log.info("QMD store initialized");
+
+    // Auto-index codebase if enabled
+    if (config.agents.autoIndexCodebase) {
+      await ctx.qmd.indexCodebase(projectRoot);
+    }
 
     // Start RCA scheduler if enabled
     if (config.agents.enableRcaCron) {
       rcaScheduler = new RcaScheduler(agentsManager, config.agents);
       rcaScheduler.start();
+    }
+
+    // Start self-improvement scheduler if enabled
+    if (config.agents.enableSelfImprovement) {
+      selfImprovementScheduler = new SelfImprovementScheduler(agentsManager, ctx.qmd, config.agents, projectRoot);
+
+      // Configure GitHub if auto-push enabled
+      if (config.agents.autoPushGithub && config.agents.githubRepo) {
+        const githubToken = keyStore.get("oauth_github_token");
+        if (githubToken) {
+          const [owner, repo] = config.agents.githubRepo.split("/");
+          selfImprovementScheduler.configureGithub(owner, repo, githubToken);
+          log.info({ repo: config.agents.githubRepo }, "GitHub auto-push configured");
+        }
+      }
+
+      selfImprovementScheduler.start();
+      log.info("Self-improvement scheduler started");
     }
     log.info("Agents manager initialized");
   } else {
@@ -522,6 +558,17 @@ async function main() {
     socket.on(
       "settings:update",
       async (data: { section: string; data: Record<string, unknown> }) => {
+        // Check authentication
+        if (!(socket as any).authenticated) {
+          log.warn({ section: data.section }, "Settings update rejected: not authenticated");
+          socket.emit("settings:saved", {
+            section: data.section,
+            success: false,
+            error: "Authentication required",
+          });
+          return;
+        }
+
         log.info({ section: data.section }, "Settings update requested");
 
         if (data.section === "llm" && data.data.primary) {
@@ -1135,6 +1182,37 @@ async function main() {
       socket.emit("agents:rca-triggered", { success: true });
     });
 
+    // Self-improvement scheduler events
+    socket.on("self-improvement:status", () => {
+      socket.emit("self-improvement:status", {
+        enabled: config.agents?.enableSelfImprovement || false,
+        times: config.agents?.selfImprovementTimes || ["06:00", "18:00"],
+        codebaseIndexed: ctx.qmd?.isCodebaseIndexed() || false,
+        codebaseStats: ctx.qmd?.getCodebaseStats() || { indexed: false },
+        githubConfigured: config.agents?.autoPushGithub || false,
+        githubRepo: config.agents?.githubRepo || "",
+      });
+    });
+
+    socket.on("self-improvement:run", async () => {
+      if (!ctx.agents || !ctx.qmd) {
+        socket.emit("self-improvement:error", { error: "Self-improvement not configured" });
+        return;
+      }
+      const scheduler = new SelfImprovementScheduler(ctx.agents, ctx.qmd, config.agents!, projectRoot);
+      const report = await scheduler.trigger();
+      socket.emit("self-improvement:report", report);
+    });
+
+    socket.on("self-improvement:index-codebase", async () => {
+      if (!ctx.qmd) {
+        socket.emit("self-improvement:error", { error: "QMD not configured" });
+        return;
+      }
+      const result = await ctx.qmd.indexCodebase(projectRoot);
+      socket.emit("self-improvement:indexed", result);
+    });
+
     // ── Orchestration ──
     socket.on("orchestration:status", async () => {
       try {
@@ -1223,6 +1301,20 @@ async function main() {
         });
         const result = await response.json();
         socket.emit("orchestration:resumed", result);
+      } catch (err) {
+        socket.emit("orchestration:error", { error: String(err) });
+      }
+    });
+
+    // Clear all done tasks
+    socket.on("orchestration:clear-done", async () => {
+      try {
+        const response = await fetch("http://127.0.0.1:18790/tasks/clear-done", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+        const result = await response.json();
+        socket.emit("orchestration:done-cleared", result);
       } catch (err) {
         socket.emit("orchestration:error", { error: String(err) });
       }

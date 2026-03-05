@@ -20,7 +20,11 @@ export class TelegramBot {
   private mediaHandler: MediaHandler;
 
   constructor(private ctx: GatewayContext) {
-    this.bot = new Bot(ctx.config.telegram.botToken);
+    const botToken = ctx.config.telegram.botToken;
+    if (!botToken) {
+      throw new Error("Telegram bot token is required");
+    }
+    this.bot = new Bot(botToken);
     this.approval = new ApprovalManager(ctx.config.telegram.approvedUsers);
     this.systemPrompt = getBotSystemPrompt();
     this.mediaHandler = new MediaHandler();

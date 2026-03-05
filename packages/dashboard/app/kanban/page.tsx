@@ -87,6 +87,10 @@ export default function KanbanPage() {
       socket.emit("orchestration:kanban");
     });
 
+    socket.on("orchestration:done-cleared", () => {
+      socket.emit("orchestration:kanban");
+    });
+
     return () => {
       socket.off("orchestration:status");
       socket.off("orchestration:kanban");
@@ -94,6 +98,7 @@ export default function KanbanPage() {
       socket.off("orchestration:feedback-received");
       socket.off("orchestration:task-added");
       socket.off("orchestration:task-moved");
+      socket.off("orchestration:done-cleared");
     };
   }, [socket, connected]);
 
@@ -123,6 +128,10 @@ export default function KanbanPage() {
   const refresh = () => {
     socket?.emit("orchestration:status");
     socket?.emit("orchestration:kanban");
+  };
+
+  const clearDoneTasks = () => {
+    socket?.emit("orchestration:clear-done");
   };
 
   const columns: { key: keyof KanbanBoard; title: string; color: string }[] = [
@@ -202,6 +211,7 @@ export default function KanbanPage() {
             color={col.color}
             tasks={kanban[col.key] || []}
             onMoveTask={moveTask}
+            onClearDone={col.key === "Done" ? clearDoneTasks : undefined}
             draggedTask={draggedTask}
             setDraggedTask={setDraggedTask}
           />
@@ -282,6 +292,7 @@ function KanbanColumn({
   color,
   tasks,
   onMoveTask,
+  onClearDone,
   draggedTask,
   setDraggedTask,
 }: {
@@ -289,6 +300,7 @@ function KanbanColumn({
   color: string;
   tasks: KanbanTask[];
   onMoveTask: (taskId: string, newStatus: string, task?: KanbanTask) => void;
+  onClearDone?: () => void;
   draggedTask: { task: KanbanTask; fromColumn: string } | null;
   setDraggedTask: (task: { task: KanbanTask; fromColumn: string } | null) => void;
 }) {
@@ -339,9 +351,18 @@ function KanbanColumn({
       <div className="flex items-center gap-2 mb-4">
         <div className={`w-2 h-2 rounded-full ${style.dot}`} />
         <h3 className={`text-sm font-medium ${style.header}`}>{title}</h3>
-        <span className="text-xs text-white/30 ml-auto bg-white/5 px-2 py-0.5 rounded-full">
+        <span className="text-xs text-white/30 bg-white/5 px-2 py-0.5 rounded-full">
           {tasks.length}
         </span>
+        {onClearDone && tasks.length > 0 && (
+          <button
+            onClick={onClearDone}
+            className="ml-auto text-xs text-white/30 hover:text-red-400 transition-colors"
+            title="Clear all done tasks"
+          >
+            Clear
+          </button>
+        )}
       </div>
       <div className="space-y-3">
         {tasks.map((task) => (
