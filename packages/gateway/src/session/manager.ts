@@ -20,6 +20,8 @@ export interface Session {
   lastActivity: number;
   /** Write lock — only one writer at a time */
   locked: boolean;
+  /** Abort controller for stopping streaming responses */
+  abortController: AbortController | null;
 }
 
 export class SessionManager {
@@ -56,6 +58,7 @@ export class SessionManager {
       createdAt: Date.now(),
       lastActivity: Date.now(),
       locked: false,
+      abortController: null,
     };
     this.sessions.set(id, session);
     this.actorIndex.set(actorId, id);
@@ -85,6 +88,35 @@ export class SessionManager {
   releaseLock(sessionId: string): void {
     const session = this.sessions.get(sessionId);
     if (session) session.locked = false;
+  }
+
+  /**
+   * Get the abort controller for a session
+   */
+  getAbortController(sessionId: string): AbortController | null {
+    const session = this.sessions.get(sessionId);
+    return session?.abortController || null;
+  }
+
+  /**
+   * Set the abort controller for a session
+   */
+  setAbortController(sessionId: string, controller: AbortController | null): void {
+    const session = this.sessions.get(sessionId);
+    if (session) session.abortController = controller;
+  }
+
+  /**
+   * Abort the current streaming response for a session
+   */
+  abortStreaming(sessionId: string): boolean {
+    const session = this.sessions.get(sessionId);
+    if (session?.abortController) {
+      session.abortController.abort();
+      session.abortController = null;
+      return true;
+    }
+    return false;
   }
 
   /**

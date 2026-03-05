@@ -338,7 +338,8 @@ export class LlmRouter {
   async *stream(
     messages: any[],
     sessionId: string,
-    systemPrompt?: string
+    systemPrompt?: string,
+    abortSignal?: AbortSignal
   ): AsyncGenerator<string, void, unknown> {
     const provider = this.config.primary;
 
@@ -361,9 +362,28 @@ export class LlmRouter {
     let totalIn = 0;
     let totalOut = 0;
 
-    for await (const chunk of result.textStream) {
-      yield chunk;
-      totalOut += chunk.length; // Approximate — real count from usage
+    // If abort signal is provided, listen for abort
+    if (abortSignal) {
+      abortSignal.addEventListener("abort", () => {
+        // The stream will be stopped when we throw
+      });
+    }
+
+    try {
+      for await (const chunk of result.textStream) {
+        // Check if aborted
+        if (abortSignal?.aborted) {
+          throw new Error("Stream aborted");
+        }
+        yield chunk;
+        totalOut += chunk.length; // Approximate — real count from usage
+      }
+    } catch (err) {
+      if (abortSignal?.aborted || (err instanceof Error && err.message === "Stream aborted")) {
+        // Don't record usage for aborted streams
+        return;
+      }
+      throw err;
     }
 
     // Record usage from final result

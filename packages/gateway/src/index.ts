@@ -424,13 +424,21 @@ async function main() {
 
         io.to(session.id).emit("chat:stream:start", { sessionId: session.id });
 
+        // Create abort controller for this request
+        const abortController = new AbortController();
+        sessions.setAbortController(session.id, abortController);
+
         let fullResponse = "";
-        for await (const chunk of llmRouter.stream(messages, session.id, botSystemPrompt)) {
-          fullResponse += chunk;
-          io.to(session.id).emit("chat:stream:chunk", {
-            sessionId: session.id,
-            chunk,
-          });
+        try {
+          for await (const chunk of llmRouter.stream(messages, session.id, botSystemPrompt, abortController.signal)) {
+            fullResponse += chunk;
+            io.to(session.id).emit("chat:stream:chunk", {
+              sessionId: session.id,
+              chunk,
+            });
+          }
+        } finally {
+          sessions.setAbortController(session.id, null);
         }
 
         sessions.addMessage(session.id, "assistant", fullResponse);
@@ -446,6 +454,34 @@ async function main() {
           error: "Failed to generate response. Check LLM configuration.",
         });
         io.to(session.id).emit("chat:stream:end", { sessionId: session.id });
+      }
+    });
+
+    // ── Stop / Cancel ──
+    socket.on("chat:stop", async (data: { actorId: string }) => {
+      // Find session by actorId
+      const session = sessions.getByActor(data.actorId);
+      if (!session) {
+        socket.emit("chat:error", { error: "No active session" });
+        return;
+      }
+
+      // Abort the current streaming if any
+      const aborted = sessions.abortStreaming(session.id);
+      if (aborted) {
+        io.to(session.id).emit("chat:stream:end", { sessionId: session.id, stopped: true });
+
+        // Ask what should be changed
+        const stopMessage = "What should be changed?";
+        io.to(session.id).emit("chat:message", {
+          sessionId: session.id,
+          role: "assistant",
+          content: stopMessage,
+          ts: Date.now(),
+        });
+        sessions.addMessage(session.id, "assistant", stopMessage);
+
+        log.info({ sessionId: session.id, actorId: data.actorId }, "Chat stream stopped by user");
       }
     });
 

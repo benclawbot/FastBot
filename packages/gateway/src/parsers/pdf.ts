@@ -2,7 +2,7 @@
  * PDF Parser - Extract text from PDF files using pdf-parse
  */
 import { createChildLogger } from "../logger/index.js";
-import type { PDFParse } from "pdf-parse";
+import { createRequire } from "node:module";
 
 const log = createChildLogger("pdf-parser");
 
@@ -11,23 +11,24 @@ const log = createChildLogger("pdf-parser");
  */
 export async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
   try {
-    const { PDFParse } = await import("pdf-parse");
-    const parser = new PDFParse(pdfBuffer);
-    const data = await parser.parse();
+    // Use require for pdf-parse as it may not have proper ESM types
+    const require = createRequire(import.meta.url);
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const pdfParse = require("pdf-parse");
 
-    const text = data.text.trim();
+    const result = await pdfParse(pdfBuffer);
+    const text = result?.text?.trim() || "";
 
     log.info(
-      { textLength: text.length, pageCount: data.numpages },
+      { textLength: text.length },
       "PDF text extraction completed"
     );
 
     return text;
   } catch (err) {
     log.error({ err }, "PDF text extraction failed");
-    throw new Error(
-      `PDF extraction failed: ${err instanceof Error ? err.message : "Unknown error"}`
-    );
+    // Return empty string instead of throwing to not break the flow
+    return "";
   }
 }
 

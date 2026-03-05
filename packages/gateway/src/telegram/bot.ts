@@ -202,6 +202,23 @@ export class TelegramBot {
 
       // Rate limit check - use unified session ID to sync with web dashboard
       const actorId = `user-1`;
+
+      // Check for stop command
+      const content = botCtx.message.text.trim();
+      if (content.toLowerCase() === "stop") {
+        const session = this.ctx.sessions.getByActor(actorId);
+        if (session) {
+          const aborted = this.ctx.sessions.abortStreaming(session.id);
+          if (aborted) {
+            this.ctx.io.to(session.id).emit("chat:stream:end", { sessionId: session.id, stopped: true });
+            await botCtx.reply("What should be changed?");
+            this.ctx.sessions.addMessage(session.id, "assistant", "What should be changed?");
+            log.info({ sessionId: session.id }, "Chat stream stopped by user");
+          }
+        }
+        return;
+      }
+
       if (!this.ctx.rateLimiter.consume(actorId)) {
         await botCtx.reply("Rate limited. Please wait a moment.");
         this.ctx.audit.log({
@@ -213,7 +230,6 @@ export class TelegramBot {
       }
 
       // Debounce check
-      const content = botCtx.message.text;
       if (this.ctx.sessions.isDuplicate(actorId, content)) return;
 
       // Get or create shared session
@@ -236,6 +252,10 @@ export class TelegramBot {
       log.info({ userId, sessionId: session.id }, "Telegram message received, routing to LLM");
       this.ctx.io.to(session.id).emit("chat:stream:start", { sessionId: session.id });
 
+      // Create abort controller for this request
+      const abortController = new AbortController();
+      this.ctx.sessions.setAbortController(session.id, abortController);
+
       try {
         const messages = session.messages.map((m) => ({
           role: m.role as "user" | "assistant",
@@ -243,12 +263,16 @@ export class TelegramBot {
         }));
 
         let fullResponse = "";
-        for await (const chunk of this.ctx.llmRouter.stream(messages, session.id, this.systemPrompt)) {
-          fullResponse += chunk;
-          this.ctx.io.to(session.id).emit("chat:stream:chunk", {
-            sessionId: session.id,
-            chunk,
-          });
+        try {
+          for await (const chunk of this.ctx.llmRouter.stream(messages, session.id, this.systemPrompt, abortController.signal)) {
+            fullResponse += chunk;
+            this.ctx.io.to(session.id).emit("chat:stream:chunk", {
+              sessionId: session.id,
+              chunk,
+            });
+          }
+        } finally {
+          this.ctx.sessions.setAbortController(session.id, null);
         }
 
         this.ctx.sessions.addMessage(session.id, "assistant", fullResponse);
