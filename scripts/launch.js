@@ -11,7 +11,7 @@ const rl = readline.createInterface({
   output: process.stdout,
 });
 
-const DASHBOARD_URL = "http://localhost:3100";
+const DASHBOARD_URL = "http://localhost:3100/setup";
 
 function askQuestion(question) {
   return new Promise((resolve) => {
@@ -172,26 +172,18 @@ function runPnpmInstall() {
 function ensurePM2Installed() {
   console.log("\nChecking PM2 installation...");
   try {
-    execSync("pm2 --version", { stdio: "inherit" });
-    console.log("PM2 is already installed.");
+    execSync("./node_modules/.bin/pm2 --version", { stdio: "inherit" });
+    console.log("PM2 is ready.");
     return true;
   } catch {
-    console.log("Installing PM2...");
+    console.log("Warning: PM2 not found, installing...");
     try {
-      // Use npx to run pm2 directly if not installed globally
-      execSync("npx pm2 --version", { stdio: "inherit" });
-      console.log("PM2 is available via npx.");
+      execSync("pnpm add -D pm2", { stdio: "inherit" });
+      console.log("PM2 installed.");
       return true;
     } catch {
-      console.log("Installing PM2 via npm...");
-      try {
-        execSync("npm install -g pm2", { stdio: "inherit" });
-        console.log("PM2 installed successfully.");
-        return true;
-      } catch {
-        console.log("Warning: Could not install PM2 automatically.");
-        return false;
-      }
+      console.log("Warning: Could not install PM2.");
+      return false;
     }
   }
 }
@@ -230,7 +222,7 @@ async function main() {
 
     // Clean up any stale PM2 state
     try {
-      execSync("npx pm2 kill 2>/dev/null || true", { stdio: "inherit" });
+      execSync("./node_modules/.bin/pm2 kill", { stdio: "inherit" });
     } catch {}
 
     // Ensure build exists
