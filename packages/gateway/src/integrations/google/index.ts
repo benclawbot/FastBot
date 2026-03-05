@@ -113,8 +113,10 @@ export class GoogleClient {
       redirect_uri: redirectUri,
       scope: [
         "https://www.googleapis.com/auth/calendar",
-        "https://www.googleapis.com/auth/drive.readonly",
+        "https://www.googleapis.com/auth/drive",
+        "https://www.googleapis.com/auth/drive.file",
         "https://www.googleapis.com/auth/gmail.readonly",
+        "https://www.googleapis.com/auth/spreadsheets",
       ],
     });
   }
@@ -133,5 +135,5 @@ export class GoogleClient {
 export type { Spreadsheet, SheetValueRange, DriveFile, GoogleClientConfig } from "./types.js";
 
 // Re-export plugins
-export { GoogleSheetsClient, googleSheetsPlugin } from "./sheets.js";
-export { GoogleDriveClient, googleDrivePlugin } from "./drive.js";
+export { GoogleSheetsClient, googleSheetsPlugin as sheetsPlugin } from "./sheets.js";
+export { GoogleDriveClient, googleDrivePlugin as drivePlugin } from "./drive.js";
