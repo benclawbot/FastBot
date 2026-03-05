@@ -3,7 +3,7 @@
  * Uses googleapis SDK for authenticated access.
  */
 import { google, type calendar_v3 } from "googleapis";
-import { createChildLogger } from "../logger/index.js";
+import { createChildLogger } from "../../logger/index.js";
 
 const log = createChildLogger("integrations:google");
 
@@ -128,3 +128,10 @@ export class GoogleClient {
     return tokens.refresh_token ?? undefined;
   }
 }
+
+// Re-export types
+export type { Spreadsheet, SheetValueRange, DriveFile, GoogleClientConfig } from "./types.js";
+
+// Re-export plugins
+export { GoogleSheetsClient, googleSheetsPlugin } from "./sheets.js";
+export { GoogleDriveClient, googleDrivePlugin } from "./drive.js";

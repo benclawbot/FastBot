@@ -34,7 +34,7 @@ import { textToSpeech } from "./voice/tts.js";
 import { getBotSystemPrompt } from "./bot/context.js";
 import { verifyToken, generateJwtSecret, issueToken } from "./security/jwt.js";
 import * as SkillsManager from "./skills/manager.js";
-import { GoogleClient } from "./integrations/google.js";
+import { GoogleClient } from "./integrations/google/index.js";
 import { MicrosoftClient } from "./integrations/microsoft.js";
 import { GitHubClient } from "./integrations/github.js";
 import type { AppConfig } from "./config/schema.js";
