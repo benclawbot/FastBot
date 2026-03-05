@@ -25,7 +25,10 @@
       "sharp",
       "sqlite3",
       "tesseract.js"
-    ]
+    ],
+    "overrides": {
+      "zod": "^3.23.8"
+    }
   },
   "devDependencies": {
     "pm2": "^6.0.14",
