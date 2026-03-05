@@ -195,9 +195,14 @@ async function main() {
   } else if (choice === "2") {
     console.log("\nStarting in Production mode...\n");
 
+    // Clean up any stale PM2 state
+    try {
+      execSync("pm2 kill 2>/dev/null || true", { stdio: "inherit" });
+    } catch {}
+
     // Start PM2
     try {
-      execSync("npx pm2 start ecosystem.config.cjs", { stdio: "inherit", shell: true });
+      execSync("pm2 start ecosystem.config.cjs", { stdio: "inherit", shell: true });
       console.log("\nPM2 services started.");
       console.log("Tip: Access the dashboard at", DASHBOARD_URL);
 
