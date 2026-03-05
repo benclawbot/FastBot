@@ -502,9 +502,12 @@ async function main() {
 
     // ── Setup / Onboarding ──
     socket.on("setup:check", async () => {
-      // Check if LLM is configured (has model set)
-      const isConfigured = !!(config.llm.primary?.model);
-      socket.emit("setup:status", { needsSetup: !isConfigured, isConfigured });
+      // Check if LLM is configured (has model set AND not a placeholder)
+      // Also check if this is a fresh install (defaults have "temp" placeholders)
+      const model = config.llm.primary?.model;
+      const isFreshInstall = model === "M2.5" && config.llm.primary?.apiKey === "temp";
+      const isConfigured = !!(model && model !== "" && !isFreshInstall);
+      socket.emit("setup:status", { needsSetup: isFreshInstall, isConfigured });
     });
 
     socket.on("setup:complete", async (data: {
