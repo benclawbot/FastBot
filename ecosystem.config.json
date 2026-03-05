@@ -12,12 +12,13 @@
     },
     {
       "name": "dashboard",
-      "script": "node_modules/next/dist/bin/next",
-      "args": "start",
+      "script": ".next/standalone/FastBot/server.js",
+      "args": "-p 3100",
       "cwd": "/home/tom/FastBot/packages/dashboard",
       "watch": false,
       "env": {
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "PORT": "3100"
       },
       "env_file": "/home/tom/FastBot/.env"
     },
