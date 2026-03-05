@@ -404,7 +404,11 @@ async function main() {
         try {
           // Run Claude Code with the prompt
           const cwd = join(process.cwd(), "..");
-          for await (const chunk of runClaudeCode(data.content, { cwd }, {
+          const projectsDir = join(cwd, "projects");
+          for await (const chunk of runClaudeCode(data.content, {
+            cwd,
+            allowedDirs: [projectsDir, "/tmp", cwd],
+          }, {
             onToolCall: (tool) => {
               // Emit tool call to show what's happening
               const toolInfo = `\n🔧 **${tool.name}**: ${JSON.stringify(tool.input).substring(0, 100)}...\n`;

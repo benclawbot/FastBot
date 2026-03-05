@@ -85,6 +85,10 @@ export async function* runClaudeCode(
     prompt,
   ];
 
+  // Force tool use via system prompt
+  const systemPrompt = `IMPORTANT: When asked to build/create/make anything, you MUST use the Write tool to create actual files. Do NOT just describe the code. Create the files in ./projects/ directory. Use Bash to run commands like npm install.`;
+  args.push("--append-system-prompt", systemPrompt);
+
   // Add optional flags
   if (skipPermissions) {
     args.splice(1, 0, "--dangerously-skip-permissions");
