@@ -1,7 +1,7 @@
 /**
  * Google Sheets Integration — interact with spreadsheets via Google Sheets API.
  */
-import { google, type sheets_v4 } from "googleapis";
+import { google, type sheets_v4, type drive_v3 } from "googleapis";
 import { createChildLogger } from "../../logger/index.js";
 import type { Spreadsheet, SheetValueRange } from "./types.js";
 
@@ -20,10 +20,12 @@ export const googleSheetsPlugin = {
  */
 export class GoogleSheetsClient {
   private sheets: sheets_v4.Sheets;
+  private drive: drive_v3.Drive;
   private auth: sheets_v4.Params$Resource$Spreadsheets$Get["auth"];
 
   constructor(auth: sheets_v4.Params$Resource$Spreadsheets$Get["auth"]) {
     this.sheets = google.sheets({ version: "v4", auth });
+    this.drive = google.drive({ version: "v3", auth });
     this.auth = auth;
     log.info("Google Sheets client initialized");
   }
@@ -32,18 +34,22 @@ export class GoogleSheetsClient {
    * List all spreadsheets the user has access to.
    */
   async listSpreadsheets(): Promise<Spreadsheet[]> {
-    const drive = google.drive({ version: "v3", auth: this.auth });
-    const { data } = await drive.files.list({
-      q: "mimeType='application/vnd.google-apps.spreadsheet'",
-      fields: "files(id, name, mimeType)",
-      pageSize: 100,
-    });
+    try {
+      const { data } = await this.drive.files.list({
+        q: "mimeType='application/vnd.google-apps.spreadsheet'",
+        fields: "files(id, name, mimeType)",
+        pageSize: 100,
+      });
 
-    return (data.files ?? []).map((f) => ({
-      id: f.id ?? "",
-      name: f.name ?? "",
-      mimeType: f.mimeType ?? "",
-    }));
+      return (data.files ?? []).map((f) => ({
+        id: f.id ?? "",
+        name: f.name ?? "",
+        mimeType: f.mimeType ?? "",
+      }));
+    } catch (error) {
+      log.error({ err: error }, "Failed to list spreadsheets");
+      throw error;
+    }
   }
 
   /**
@@ -52,15 +58,20 @@ export class GoogleSheetsClient {
    * @param range The range to read (e.g., "Sheet1!A1:B10")
    */
   async readRange(spreadsheetId: string, range: string): Promise<SheetValueRange> {
-    const { data } = await this.sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range,
-    });
+    try {
+      const { data } = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range,
+      });
 
-    return {
-      range: data.range ?? range,
-      values: data.values ?? [],
-    };
+      return {
+        range: data.range ?? range,
+        values: data.values ?? [],
+      };
+    } catch (error) {
+      log.error({ err: error, spreadsheetId, range }, "Failed to read range from spreadsheet");
+      throw error;
+    }
   }
 
   /**
@@ -70,14 +81,19 @@ export class GoogleSheetsClient {
    * @param values The values to write
    */
   async writeRange(spreadsheetId: string, range: string, values: string[][]): Promise<void> {
-    await this.sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range,
-      valueInputOption: "USER_ENTERED",
-      requestBody: { values },
-    });
+    try {
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range,
+        valueInputOption: "USER_ENTERED",
+        requestBody: { values },
+      });
 
-    log.info({ spreadsheetId, range }, "Values written to spreadsheet");
+      log.info({ spreadsheetId, range }, "Values written to spreadsheet");
+    } catch (error) {
+      log.error({ err: error, spreadsheetId, range }, "Failed to write range to spreadsheet");
+      throw error;
+    }
   }
 
   /**
@@ -86,22 +102,27 @@ export class GoogleSheetsClient {
    * @param sheetTitle The title for the new sheet
    */
   async createSheet(spreadsheetId: string, sheetTitle: string): Promise<void> {
-    await this.sheets.spreadsheets.batchUpdate({
-      spreadsheetId,
-      requestBody: {
-        requests: [
-          {
-            addSheet: {
-              properties: {
-                title: sheetTitle,
+    try {
+      await this.sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [
+            {
+              addSheet: {
+                properties: {
+                  title: sheetTitle,
+                },
               },
             },
-          },
-        ],
-      },
-    });
+          ],
+        },
+      });
 
-    log.info({ spreadsheetId, sheetTitle }, "Sheet created");
+      log.info({ spreadsheetId, sheetTitle }, "Sheet created");
+    } catch (error) {
+      log.error({ err: error, spreadsheetId, sheetTitle }, "Failed to create sheet in spreadsheet");
+      throw error;
+    }
   }
 
   /**
@@ -111,13 +132,18 @@ export class GoogleSheetsClient {
    * @param values The values to append
    */
   async appendRow(spreadsheetId: string, range: string, values: string[]): Promise<void> {
-    await this.sheets.spreadsheets.values.append({
-      spreadsheetId,
-      range,
-      valueInputOption: "USER_ENTERED",
-      requestBody: { values: [values] },
-    });
+    try {
+      await this.sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range,
+        valueInputOption: "USER_ENTERED",
+        requestBody: { values: [values] },
+      });
 
-    log.info({ spreadsheetId, range }, "Row appended to spreadsheet");
+      log.info({ spreadsheetId, range }, "Row appended to spreadsheet");
+    } catch (error) {
+      log.error({ err: error, spreadsheetId, range }, "Failed to append row to spreadsheet");
+      throw error;
+    }
   }
 }
