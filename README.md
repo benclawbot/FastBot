@@ -5,14 +5,13 @@ Ultra-secure personal AI gateway. Runs on Android (Termux) or any Node.js server
 ## Features
 
 - **Telegram Bot** - Control your AI agent via Telegram (text, voice, photos, and documents)
-- **Multi-Provider LLM Router** - OpenAI, Anthropic, Google, Ollama, MiniMax, Groq, DeepSeek, and more
+- **Multi-Provider LLM Router** - OpenAI, Anthropic, Google, Mistral, Cohere, DeepSeek, Groq, Ollama, MiniMax, and more
 - **Web Dashboard** - Next.js 14 PWA for mission control
-- **Setup Wizard** - First-run guided configuration (PIN, Telegram, LLM)
+- **Setup Wizard** - First-run guided configuration (Telegram, LLM, JWT authentication)
 - **Skills System** - Install Claude Code compatible skills for AI agents
 - **Agents Management** - Create and manage AI agents with persistent memories
 - **Orchestration** - CrewAI Flows for multi-agent task delegation
 - **Kanban Board** - Visual task management with drag-and-drop
-- **Workflow Automation** - Create and run custom workflow templates
 - **QMD Search** - Vector search across memories, chat history, and agent files
 - **RCA Scheduler** - Automated root cause analysis and lessons learned
 - **Self-Improvement** - Automated analysis of agent performance and generation of improvements
@@ -25,12 +24,11 @@ Ultra-secure personal AI gateway. Runs on Android (Termux) or any Node.js server
 - **Audit Logging** - Full activity tracking
 - **Security Hardened** - SSRF blocking, path traversal prevention, rate limiting
 - **Voice Input** - Whisper transcription for voice notes (Telegram & Dashboard)
-- **Voice Output** - TTS synthesis via ElevenLabs, OpenAI, or free gTTS
-- **Media Library** - Upload and manage images, videos, audio, and documents
+- **Voice Output** - TTS synthesis via gTTS, ElevenLabs, OpenAI, Google, Polly, Coqui, or Piper
 - **Command Autocomplete** - Type `/` in chat to see available commands
 - **File Attachments** - Paste images or attach files in chat
 - **Bot Identity** - Customizable personality via identity, role, and memories
-- **Fixed Port** - Default port 44512 for reliable connections
+- **Auto-Port** - Automatically finds next available port if configured port is in use
 - **PM2 Process Manager** - Production-ready process management
 - **Cron Jobs** - Automated self-improvement and codebase indexing
 
@@ -45,17 +43,11 @@ Ultra-secure personal AI gateway. Runs on Android (Termux) or any Node.js server
 ### Settings
 ![Settings](docs/images/dashboard-settings.png)
 
-### Media Library
-![Media](docs/images/dashboard-media.png)
-
 ### Agents
 ![Agents](docs/images/dashboard-agents.png)
 
 ### Kanban Board
 ![Kanban](docs/images/dashboard-kanban.png)
-
-### Workflows
-![Workflows](docs/images/dashboard-workflows.png)
 
 ### Skills
 ![Skills](docs/images/dashboard-skills.png)
@@ -229,10 +221,10 @@ npx pm2 logs
 On first run, the dashboard redirects to the Setup Wizard at `/setup`:
 
 1. **Welcome** - Introduction to FastBot
-2. **Security PIN** - Create a PIN to encrypt your API keys (minimum 4 characters)
-3. **Telegram** - Optionally configure your Telegram bot token
-4. **LLM Provider** - Select your preferred AI provider and model
-5. **Review** - Confirm and save your configuration
+2. **Telegram** - Optionally configure your Telegram bot token
+3. **LLM Provider** - Select your preferred AI provider and model
+4. **Review** - Confirm and save your configuration
+5. **Complete** - JWT authentication is automatically configured
 
 The setup wizard ensures all required settings are configured before using the bot.
 
@@ -358,7 +350,7 @@ python -m src.scb_orchestration.server
 The core gateway service.
 
 **Ports:**
-- WebSocket: `44512`
+- WebSocket: `configurable` - Uses configured port, auto-finds next available if in use
 - Dashboard port: `3100`
 
 **Socket Events:**
@@ -526,22 +518,6 @@ Access the Cron Jobs page at `/cron` in the dashboard to:
 - Review self-improvement reports
 - Configure scheduling
 
-## Media Library
-
-Upload and manage files in `/media`:
-- **Images:** jpeg, png, gif, webp, svg, bmp, tiff
-- **Videos:** mp4, webm, ogg, quicktime, avi
-- **Audio:** mp3, wav, ogg, webm
-- **Documents:** pdf, doc, docx, xls, xlsx, ppt, pptx
-- **Text:** txt, md, csv, json, html, css, js
-- **Archives:** zip, tar, gzip, rar, 7z
-
-Features:
-- Grid and list view modes
-- Search files
-- Preview images and documents
-- Delete files
-
 ## QMD Search
 
 Query Memory Data provides semantic search across:
@@ -594,14 +570,14 @@ This enables the AI to reference your codebase directly during conversations.
 
 ## Authentication
 
-The dashboard requires PIN-based authentication:
+The dashboard uses JWT-based authentication:
 
-1. **First access**: You'll see a PIN entry modal
-2. **Enter PIN**: Use the PIN set during Setup Wizard (or from `config.json`)
-3. **JWT Token**: After login, a JWT token is stored in localStorage
-4. **Persistent**: Token is automatically used for subsequent visits
+1. **First access**: You'll see a PIN entry modal (any PIN with 4+ characters works)
+2. **Auto-login**: After first login, a JWT token is stored in localStorage
+3. **Persistent**: Token is automatically used for subsequent visits
+4. **Fallback**: If no JWT is found, you can enter any PIN to authenticate
 
-The PIN is also used to encrypt sensitive data (API keys) in the keystore.
+**Security**: All sensitive data (API keys) is encrypted with AES-256-GCM in the keystore.
 
 ## Commands (Telegram)
 
@@ -639,7 +615,7 @@ If you get TypeScript errors about `document` in playwright:
 
 ### Port Conflicts
 
-If port 44512 is already in use, update the `port` in `config.json` and restart.
+The gateway automatically finds the next available port if the configured port is in use. Check the `.gateway-port` file for the current port.
 
 ### Database Issues
 
