@@ -338,6 +338,187 @@ export class TelegramBot {
         await this.sendResponse(userId, "Sorry, I couldn't process your voice message.");
       }
     });
+
+    // Photo message handler - download, store, extract text via OCR
+    this.bot.on("message:photo", async (botCtx) => {
+      const userId = botCtx.from?.id;
+      if (!userId || !this.approval.isApproved(userId)) return;
+      if (this.approval.isBlocked(userId)) return;
+
+      const photo = botCtx.message.photo;
+      if (!photo || photo.length === 0) return;
+
+      // Rate limit check
+      const actorId = `user-1`;
+      if (!this.ctx.rateLimiter.consume(actorId)) {
+        await botCtx.reply("Rate limited. Please wait a moment.");
+        return;
+      }
+
+      try {
+        // Get the largest photo (highest resolution)
+        const largestPhoto = photo[photo.length - 1];
+
+        // Download the photo
+        const file = await botCtx.api.getFile(largestPhoto.file_id);
+        const fileUrl = `https://api.telegram.org/file/bot${this.ctx.config.telegram.botToken}/${file.file_path}`;
+        const response = await fetch(fileUrl);
+        const buffer = Buffer.from(await response.arrayBuffer());
+
+        // Determine mime type from file_path
+        const ext = file.file_path?.split(".").pop() || "jpg";
+        const mimeType = ext === "png" ? "image/png" : "image/jpeg";
+
+        // Store the file
+        const filename = `telegram_${Date.now()}_${largestPhoto.file_id}.${ext}`;
+        const storedFile = this.mediaHandler.store(buffer, filename, mimeType);
+
+        log.info({ userId, fileId: storedFile.id, size: storedFile.sizeBytes }, "Photo stored from Telegram");
+
+        // Extract text via OCR
+        await botCtx.replyWithChatAction("typing");
+        const extractedText = await this.mediaHandler.extractText(storedFile.id);
+
+        // Build user message with extracted text
+        const userMessage = extractedText
+          ? `[Image sent]\n\nExtracted text: ${extractedText.slice(0, 2000)}${extractedText.length > 2000 ? "..." : ""}`
+          : "[Image sent - no text could be extracted]";
+
+        // Get or create shared session
+        const session = this.ctx.sessions.getOrCreate(actorId, "telegram");
+        this.ctx.sessions.addMessage(session.id, "user", userMessage);
+
+        // Emit to Socket.io
+        this.ctx.io.to(session.id).emit("chat:message", {
+          sessionId: session.id,
+          role: "user",
+          content: userMessage,
+          ts: Date.now(),
+          source: "telegram",
+          attachment: {
+            type: "image",
+            fileId: storedFile.id,
+            extractedText: extractedText,
+          },
+        });
+
+        // Route to LLM
+        log.info({ userId, sessionId: session.id }, "Photo received from Telegram, routing to LLM");
+        this.ctx.io.to(session.id).emit("chat:stream:start", { sessionId: session.id });
+
+        const messages = session.messages.map((m) => ({
+          role: m.role as "user" | "assistant",
+          content: m.content,
+        }));
+
+        let fullResponse = "";
+        for await (const chunk of this.ctx.llmRouter.stream(messages, session.id, this.systemPrompt)) {
+          fullResponse += chunk;
+          this.ctx.io.to(session.id).emit("chat:stream:chunk", {
+            sessionId: session.id,
+            chunk,
+          });
+        }
+
+        this.ctx.sessions.addMessage(session.id, "assistant", fullResponse);
+        this.ctx.io.to(session.id).emit("chat:stream:end", { sessionId: session.id });
+
+        // Send response back to Telegram
+        await this.sendResponse(userId, fullResponse);
+      } catch (err) {
+        log.error({ err, userId }, "Failed to process photo");
+        await this.sendResponse(userId, "Sorry, I couldn't process the image.");
+      }
+    });
+
+    // Document message handler - download, store, extract text
+    this.bot.on("message:document", async (botCtx) => {
+      const userId = botCtx.from?.id;
+      if (!userId || !this.approval.isApproved(userId)) return;
+      if (this.approval.isBlocked(userId)) return;
+
+      const document = botCtx.message.document;
+      if (!document) return;
+
+      // Rate limit check
+      const actorId = `user-1`;
+      if (!this.ctx.rateLimiter.consume(actorId)) {
+        await botCtx.reply("Rate limited. Please wait a moment.");
+        return;
+      }
+
+      try {
+        // Download the document
+        const file = await botCtx.api.getFile(document.file_id);
+        const fileUrl = `https://api.telegram.org/file/bot${this.ctx.config.telegram.botToken}/${file.file_path}`;
+        const response = await fetch(fileUrl);
+        const buffer = Buffer.from(await response.arrayBuffer());
+
+        // Get filename and mime type
+        const originalName = document.file_name || `document_${document.file_id}`;
+        const mimeType = document.mime_type || "application/octet-stream";
+
+        // Store the file
+        const storedFile = this.mediaHandler.store(buffer, originalName, mimeType);
+
+        log.info({ userId, fileId: storedFile.id, mimeType: storedFile.mimeType }, "Document stored from Telegram");
+
+        // Extract text based on file type
+        await botCtx.replyWithChatAction("typing");
+        const extractedText = await this.mediaHandler.extractText(storedFile.id);
+
+        // Build user message with extracted text
+        const userMessage = extractedText
+          ? `[Document: ${originalName}]\n\nExtracted text: ${extractedText.slice(0, 2000)}${extractedText.length > 2000 ? "..." : ""}`
+          : `[Document: ${originalName} - no text could be extracted]`;
+
+        // Get or create shared session
+        const session = this.ctx.sessions.getOrCreate(actorId, "telegram");
+        this.ctx.sessions.addMessage(session.id, "user", userMessage);
+
+        // Emit to Socket.io
+        this.ctx.io.to(session.id).emit("chat:message", {
+          sessionId: session.id,
+          role: "user",
+          content: userMessage,
+          ts: Date.now(),
+          source: "telegram",
+          attachment: {
+            type: "document",
+            fileId: storedFile.id,
+            filename: originalName,
+            extractedText: extractedText,
+          },
+        });
+
+        // Route to LLM
+        log.info({ userId, sessionId: session.id }, "Document received from Telegram, routing to LLM");
+        this.ctx.io.to(session.id).emit("chat:stream:start", { sessionId: session.id });
+
+        const messages = session.messages.map((m) => ({
+          role: m.role as "user" | "assistant",
+          content: m.content,
+        }));
+
+        let fullResponse = "";
+        for await (const chunk of this.ctx.llmRouter.stream(messages, session.id, this.systemPrompt)) {
+          fullResponse += chunk;
+          this.ctx.io.to(session.id).emit("chat:stream:chunk", {
+            sessionId: session.id,
+            chunk,
+          });
+        }
+
+        this.ctx.sessions.addMessage(session.id, "assistant", fullResponse);
+        this.ctx.io.to(session.id).emit("chat:stream:end", { sessionId: session.id });
+
+        // Send response back to Telegram
+        await this.sendResponse(userId, fullResponse);
+      } catch (err) {
+        log.error({ err, userId }, "Failed to process document");
+        await this.sendResponse(userId, "Sorry, I couldn't process the document.");
+      }
+    });
   }
 
   /**

@@ -1563,12 +1563,22 @@ async function main() {
         // Use MediaHandler to store the file
         const mediaFile = mediaHandler.store(buffer, filename, data.type);
 
+        // Extract text from the file (OCR for images, parsing for documents)
+        let extractedText: string | null = null;
+        try {
+          extractedText = await mediaHandler.extractText(mediaFile.id);
+        } catch (extractErr) {
+          log.warn({ err: extractErr, fileId: mediaFile.id }, "Text extraction failed, continuing without it");
+        }
+
         socket.emit("file:uploaded", {
           filename: mediaFile.filename,
           isImage: mediaFile.mimeType.startsWith("image/"),
           size: mediaFile.sizeBytes,
           id: mediaFile.id,
           status: "stored",
+          extractedText: extractedText,
+          extractedTextPreview: extractedText ? extractedText.slice(0, 500) + (extractedText.length > 500 ? "..." : "") : null,
         });
       } catch (err) {
         log.error({ err }, "File upload failed");

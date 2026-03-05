@@ -7,6 +7,9 @@ import { mkdirSync, existsSync, writeFileSync, readFileSync, unlinkSync, readdir
 import { resolve, extname, basename } from "node:path";
 import { randomBytes } from "node:crypto";
 import { MEDIA_DIR } from "../config/defaults.js";
+import { extractTextFromImage, isImageOcrSupported } from "../ocr/image.js";
+import { extractTextFromPdf, isPdfSupported } from "../parsers/pdf.js";
+import { extractTextFromDocument, isDocumentSupported } from "../parsers/document.js";
 
 const log = createChildLogger("media");
 
@@ -77,6 +80,7 @@ const MAX_FILE_SIZE = 25 * 1024 * 1024;
  */
 export class MediaHandler {
   private storageDir: string;
+  private textCache: Map<string, string> = new Map();
 
   constructor(storageDir = MEDIA_DIR) {
     this.storageDir = storageDir;
@@ -84,6 +88,62 @@ export class MediaHandler {
       mkdirSync(this.storageDir, { recursive: true });
     }
     log.info({ dir: this.storageDir }, "Media handler initialized");
+  }
+
+  /**
+   * Extract text from a file based on its type.
+   * Uses cached results if available.
+   */
+  async extractText(fileId: string): Promise<string | null> {
+    // Check cache first
+    const cached = this.textCache.get(fileId);
+    if (cached) {
+      log.info({ fileId }, "Using cached extracted text");
+      return cached;
+    }
+
+    const file = this.get(fileId);
+    if (!file || !file.data) {
+      log.warn({ fileId }, "File not found for text extraction");
+      return null;
+    }
+
+    const mimeType = file.mimeType;
+    const filename = file.originalName;
+    let extractedText: string;
+
+    try {
+      if (isImageOcrSupported(mimeType)) {
+        extractedText = await extractTextFromImage(file.data, mimeType);
+      } else if (isPdfSupported(mimeType)) {
+        extractedText = await extractTextFromPdf(file.data);
+      } else if (isDocumentSupported(mimeType)) {
+        extractedText = await extractTextFromDocument(file.data, mimeType, filename);
+      } else {
+        log.warn({ fileId, mimeType }, "Unsupported file type for text extraction");
+        return null;
+      }
+
+      // Cache the result
+      this.textCache.set(fileId, extractedText);
+      log.info({ fileId, textLength: extractedText.length }, "Text extraction completed");
+
+      return extractedText;
+    } catch (err) {
+      log.error({ fileId, err }, "Text extraction failed");
+      return null;
+    }
+  }
+
+  /**
+   * Clear cached text for a file
+   */
+  clearTextCache(fileId?: string): void {
+    if (fileId) {
+      this.textCache.delete(fileId);
+    } else {
+      this.textCache.clear();
+    }
   }
 
   /**
