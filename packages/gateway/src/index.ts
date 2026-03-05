@@ -947,6 +947,118 @@ async function main() {
       }
     });
 
+    // Google Drive handlers
+    socket.on("drive:list", async (data, callback) => {
+      try {
+        const refreshToken = keyStore.get("oauth_google_refresh_token");
+        if (!refreshToken) {
+          callback({ error: "Google not connected" });
+          return;
+        }
+        const googleConfig = config.google;
+        if (!googleConfig?.clientId || !googleConfig?.clientSecret) {
+          callback({ error: "Google not configured" });
+          return;
+        }
+        const client = new GoogleClient(googleConfig.clientId, googleConfig.clientSecret, undefined, refreshToken);
+        const driveClient = new GoogleDriveClient(client.getAuth());
+        const files = await driveClient.listFiles(data?.query, data?.maxResults);
+        callback({ data: files });
+      } catch (err) {
+        log.error({ err }, "Failed to list Drive files");
+        callback({ error: "Failed to list Drive files" });
+      }
+    });
+
+    socket.on("drive:download", async (data, callback) => {
+      try {
+        const refreshToken = keyStore.get("oauth_google_refresh_token");
+        if (!refreshToken) {
+          callback({ error: "Google not connected" });
+          return;
+        }
+        const googleConfig = config.google;
+        if (!googleConfig?.clientId || !googleConfig?.clientSecret) {
+          callback({ error: "Google not configured" });
+          return;
+        }
+        const client = new GoogleClient(googleConfig.clientId, googleConfig.clientSecret, undefined, refreshToken);
+        const driveClient = new GoogleDriveClient(client.getAuth());
+        const buffer = await driveClient.downloadFile(data.fileId);
+        callback({ data: buffer.toString("base64") });
+      } catch (err) {
+        log.error({ err }, "Failed to download file");
+        callback({ error: "Failed to download file" });
+      }
+    });
+
+    socket.on("drive:upload", async (data, callback) => {
+      try {
+        const refreshToken = keyStore.get("oauth_google_refresh_token");
+        if (!refreshToken) {
+          callback({ error: "Google not connected" });
+          return;
+        }
+        const googleConfig = config.google;
+        if (!googleConfig?.clientId || !googleConfig?.clientSecret) {
+          callback({ error: "Google not configured" });
+          return;
+        }
+        const client = new GoogleClient(googleConfig.clientId, googleConfig.clientSecret, undefined, refreshToken);
+        const driveClient = new GoogleDriveClient(client.getAuth());
+        const content = Buffer.from(data.content, "base64");
+        const result = await driveClient.uploadFile(data.name, data.mimeType, content, data.parentId);
+        callback({ data: result });
+      } catch (err) {
+        log.error({ err }, "Failed to upload file");
+        callback({ error: "Failed to upload file" });
+      }
+    });
+
+    socket.on("drive:createFolder", async (data, callback) => {
+      try {
+        const refreshToken = keyStore.get("oauth_google_refresh_token");
+        if (!refreshToken) {
+          callback({ error: "Google not connected" });
+          return;
+        }
+        const googleConfig = config.google;
+        if (!googleConfig?.clientId || !googleConfig?.clientSecret) {
+          callback({ error: "Google not configured" });
+          return;
+        }
+        const client = new GoogleClient(googleConfig.clientId, googleConfig.clientSecret, undefined, refreshToken);
+        const driveClient = new GoogleDriveClient(client.getAuth());
+        const result = await driveClient.createFolder(data.name, data.parentId);
+        callback({ data: result });
+      } catch (err) {
+        log.error({ err }, "Failed to create folder");
+        callback({ error: "Failed to create folder" });
+      }
+    });
+
+    socket.on("drive:delete", async (data, callback) => {
+      try {
+        const refreshToken = keyStore.get("oauth_google_refresh_token");
+        if (!refreshToken) {
+          callback({ error: "Google not connected" });
+          return;
+        }
+        const googleConfig = config.google;
+        if (!googleConfig?.clientId || !googleConfig?.clientSecret) {
+          callback({ error: "Google not configured" });
+          return;
+        }
+        const client = new GoogleClient(googleConfig.clientId, googleConfig.clientSecret, undefined, refreshToken);
+        const driveClient = new GoogleDriveClient(client.getAuth());
+        await driveClient.deleteFile(data.fileId);
+        callback({ success: true });
+      } catch (err) {
+        log.error({ err }, "Failed to delete file");
+        callback({ error: "Failed to delete file" });
+      }
+    });
+
     // Start Microsoft OAuth flow
     socket.on("oauth:microsoft:start", async (data?: { origin?: string }) => {
       const msConfig = config.microsoft;
