@@ -198,6 +198,62 @@ export const agentsConfigSchema = z
   })
   .optional();
 
+/** Claudegram agent configuration */
+export const claudegramAgentSchema = z.object({
+  /** Path to Claude Code executable */
+  claudeExecutablePath: z.string().default('claude'),
+  /** Use bundled Claude Code */
+  claudeUseBundled: z.boolean().default(true),
+  /** SDK log level */
+  claudeSdkLogLevel: z.enum(['off', 'basic', 'verbose', 'trace']).default('basic'),
+  /** Include partial messages */
+  claudeSdkIncludePartial: z.boolean().default(false),
+  /** Show reasoning summary */
+  claudeReasoningSummary: z.boolean().default(true),
+  /** Enable dangerous mode (bypass permissions) */
+  dangerousMode: z.boolean().default(false),
+  /** Max iterations for loop mode */
+  maxLoopIterations: z.number().default(5),
+  /** Enable agent watchdog */
+  agentWatchdogEnabled: z.boolean().default(true),
+  /** Watchdog warning seconds */
+  agentWatchdogWarnSeconds: z.number().default(30),
+  /** Watchdog log interval seconds */
+  agentWatchdogLogSeconds: z.number().default(10),
+  /** Query timeout ms (0 = disabled) */
+  agentQueryTimeoutMs: z.number().default(0),
+  /** Cancel on new message */
+  cancelOnNewMessage: z.boolean().default(false),
+  /** Show usage in responses */
+  contextShowUsage: z.boolean().default(false),
+  /** Notify on compaction */
+  contextNotifyCompaction: z.boolean().default(true),
+  /** Default streaming mode */
+  streamingMode: z.enum(['streaming', 'wait']).default('streaming'),
+  /** Workspace directory */
+  workspaceDir: z.string().default(process.env.HOME || '.'),
+});
+
+/** Claudegram media configuration */
+export const claudegramMediaSchema = z.object({
+  /** Enable Reddit fetch */
+  redditEnabled: z.boolean().default(true),
+  /** Reddit client ID */
+  redditClientId: z.string().optional(),
+  /** Reddit client secret */
+  redditClientSecret: z.string().optional(),
+  /** Enable Reddit video download */
+  vredditEnabled: z.boolean().default(true),
+  /** Enable Medium fetch */
+  mediumEnabled: z.boolean().default(true),
+  /** Enable media extraction (YouTube, Instagram, TikTok) */
+  extractEnabled: z.boolean().default(true),
+  /** Enable voice transcription */
+  transcribeEnabled: z.boolean().default(true),
+  /** Enable TTS */
+  ttsEnabled: z.boolean().default(true),
+});
+
 export const appConfigSchema = z.object({
   server: serverConfigSchema.optional(),
   telegram: telegramConfigSchema.optional(),
@@ -212,6 +268,10 @@ export const appConfigSchema = z.object({
   tailscale: tailscaleConfigSchema,
   agents: agentsConfigSchema,
   orchestration: orchestrationConfigSchema,
+  claudegram: z.object({
+    agent: claudegramAgentSchema.optional(),
+    media: claudegramMediaSchema.optional(),
+  }).optional(),
 }).transform((val) => ({
   server: serverConfigSchema.parse(val.server ?? {}),
   telegram: telegramConfigSchema.parse(val.telegram ?? {}),
@@ -226,6 +286,10 @@ export const appConfigSchema = z.object({
   tailscale: val.tailscale,
   agents: val.agents,
   orchestration: val.orchestration,
+  claudegram: {
+    agent: claudegramAgentSchema.parse(val.claudegram?.agent ?? {}),
+    media: claudegramMediaSchema.parse(val.claudegram?.media ?? {}),
+  },
 }));
 
 export type AppConfig = z.infer<typeof appConfigSchema>;
@@ -243,3 +307,5 @@ export type GithubConfig = z.infer<typeof githubConfigSchema>;
 export type Agent = z.infer<typeof agentSchema>;
 export type AgentsConfig = z.infer<typeof agentsConfigSchema>;
 export type OrchestrationConfig = z.infer<typeof orchestrationConfigSchema>;
+export type ClaudegramAgentConfig = z.infer<typeof claudegramAgentSchema>;
+export type ClaudegramMediaConfig = z.infer<typeof claudegramMediaSchema>;
