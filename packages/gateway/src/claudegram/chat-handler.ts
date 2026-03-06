@@ -103,6 +103,50 @@ export function setupChatHandler(io: Server, socket: Socket) {
       return;
     }
 
+    // /sessions - list recent sessions
+    if (content === '/sessions') {
+      const history = sessionManager.getSessionHistory(sessionKey, 10);
+      socket.emit('chat:message', {
+        role: 'assistant',
+        content: history.length
+          ? `Sessions:\n${history.map((h, i) => `${i + 1}. ${h.projectPath}`).join('\n')}`
+          : 'No sessions found',
+        ts: Date.now(),
+      });
+      return;
+    }
+
+    // /status - show session status
+    if (content === '/status') {
+      socket.emit('chat:message', {
+        role: 'assistant',
+        content: `Working: ${session?.workingDirectory}\nSession: ${session?.conversationId}`,
+        ts: Date.now(),
+      });
+      return;
+    }
+
+    // /ping - health check
+    if (content === '/ping') {
+      socket.emit('chat:message', {
+        role: 'assistant',
+        content: 'Pong!',
+        ts: Date.now(),
+      });
+      return;
+    }
+
+    // /commands - list commands
+    if (content === '/commands') {
+      const { getAvailableCommands } = await import('./claude/command-parser.js');
+      socket.emit('chat:message', {
+        role: 'assistant',
+        content: getAvailableCommands(),
+        ts: Date.now(),
+      });
+      return;
+    }
+
     // Emit user message first
     socket.emit('chat:message', {
       role: 'user',
