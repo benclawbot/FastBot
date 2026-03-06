@@ -389,6 +389,119 @@ export class TelegramBot {
       await botCtx.reply("✅ Conversation reset (session preserved)");
     });
 
+    // /model command - show or set AI model
+    this.bot.command("model", async (botCtx) => {
+      const userId = botCtx.from?.id;
+      if (!userId || !this.approval.isApproved(userId)) {
+        await botCtx.reply("Not authorized.");
+        return;
+      }
+
+      const args = botCtx.message?.text.split(" ").slice(1).join(" ").toLowerCase();
+      const validModels = ["opus", "sonnet", "haiku"];
+
+      if (!args) {
+        await botCtx.reply(
+          "*Available Models:*\n\n" +
+            "• `opus` - Most capable\n" +
+            "• `sonnet` - Balanced\n" +
+            "• `haiku` - Fastest\n\n" +
+            "Usage: /model sonnet",
+          { parse_mode: "Markdown" }
+        );
+        return;
+      }
+
+      if (!validModels.includes(args)) {
+        await botCtx.reply(`Invalid model. Use: ${validModels.join(", ")}`);
+        return;
+      }
+
+      const sessionKey = `user:${userId}`;
+      const session = sessionManager.getSession(sessionKey);
+      if (session) {
+        session.preferences = { ...session.preferences, model: args };
+      }
+
+      await botCtx.reply(`✅ Model set to: ${args}`);
+    });
+
+    // /mode command - toggle streaming mode
+    this.bot.command("mode", async (botCtx) => {
+      const userId = botCtx.from?.id;
+      if (!userId || !this.approval.isApproved(userId)) {
+        await botCtx.reply("Not authorized.");
+        return;
+      }
+
+      const sessionKey = `user:${userId}`;
+      const session = sessionManager.getSession(sessionKey);
+      const currentMode = session?.preferences?.streaming ?? true;
+      const newMode = !currentMode;
+
+      if (session) {
+        session.preferences = { ...session.preferences, streaming: newMode };
+      }
+
+      await botCtx.reply(`✅ Streaming mode: ${newMode ? "ON" : "OFF"}`);
+    });
+
+    // /terminalui command - toggle terminal-style display
+    this.bot.command("terminalui", async (botCtx) => {
+      const userId = botCtx.from?.id;
+      if (!userId || !this.approval.isApproved(userId)) {
+        await botCtx.reply("Not authorized.");
+        return;
+      }
+
+      const sessionKey = `user:${userId}`;
+      const session = sessionManager.getSession(sessionKey);
+      const currentTUI = session?.preferences?.terminalUI ?? false;
+      const newTUI = !currentTUI;
+
+      if (session) {
+        session.preferences = { ...session.preferences, terminalUI: newTUI };
+      }
+
+      await botCtx.reply(`✅ Terminal UI: ${newTUI ? "ON" : "OFF"}`);
+    });
+
+    // /provider command - switch AI provider
+    this.bot.command("provider", async (botCtx) => {
+      const userId = botCtx.from?.id;
+      if (!userId || !this.approval.isApproved(userId)) {
+        await botCtx.reply("Not authorized.");
+        return;
+      }
+
+      const args = botCtx.message?.text.split(" ").slice(1).join(" ").toLowerCase();
+      const validProviders = ["claude", "opencode"];
+
+      if (!args) {
+        await botCtx.reply(
+          "*Available Providers:*\n\n" +
+            "• `claude` - Anthropic Claude\n" +
+            "• `opencode` - OpenCode\n\n" +
+            "Usage: /provider claude",
+          { parse_mode: "Markdown" }
+        );
+        return;
+      }
+
+      if (!validProviders.includes(args)) {
+        await botCtx.reply(`Invalid provider. Use: ${validProviders.join(", ")}`);
+        return;
+      }
+
+      const sessionKey = `user:${userId}`;
+      const session = sessionManager.getSession(sessionKey);
+      if (session) {
+        session.preferences = { ...session.preferences, provider: args };
+      }
+
+      await botCtx.reply(`✅ Provider set to: ${args}`);
+    });
+
     // /models command
     this.bot.command("models", async (botCtx) => {
       const userId = botCtx.from?.id;

@@ -34,6 +34,12 @@ interface Session {
   workingDirectory: string;
   createdAt: Date;
   lastActivity: Date;
+  preferences?: {
+    model?: string;
+    provider?: string;
+    streaming?: boolean;
+    terminalUI?: boolean;
+  };
 }
 
 class SessionManager {
