@@ -4,7 +4,7 @@
  */
 import { createChildLogger } from "../../logger/index.js";
 import { type SQLiteDB } from "../sqlite.js";
-import { initMemorySchema, type Memory } from "./schema.js";
+import { initMemorySchema, type Insight, type Memory } from "./schema.js";
 
 const log = createChildLogger("memory:store");
 
@@ -112,6 +112,65 @@ export class MemoryStore {
    */
   markConsolidated(id: string): void {
     this.db.run(`UPDATE memories SET consolidated = 1 WHERE id = ?`, [id]);
+  }
+
+  /**
+   * Get unconsolidated memories for a user since a given timestamp.
+   */
+  getUnconsolidated(userId: string, since: number): Memory[] {
+    const rows = this.db.all<{
+      id: string;
+      user_id: string;
+      content: string;
+      embedding: Uint8Array | null;
+      timestamp: number;
+      tags: string;
+      consolidated: number;
+    }>(
+      `SELECT id, user_id, content, embedding, timestamp, tags, consolidated
+       FROM memories
+       WHERE user_id = ? AND consolidated = 0 AND timestamp >= ?
+       ORDER BY timestamp ASC`,
+      [userId, since]
+    );
+
+    return rows.map((row) => ({
+      id: row.id,
+      userId: row.user_id,
+      content: row.content,
+      embedding: row.embedding,
+      timestamp: row.timestamp,
+      tags: JSON.parse(row.tags),
+      consolidated: row.consolidated === 1,
+    }));
+  }
+
+  /**
+   * Store an insight derived from consolidated memories.
+   */
+  storeInsight(insight: Omit<Insight, "id" | "createdAt">): Insight {
+    const id = crypto.randomUUID();
+    const createdAt = Date.now();
+
+    this.db.run(
+      `INSERT INTO insights (id, user_id, content, source_memory_ids, created_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      [
+        id,
+        insight.userId,
+        insight.content,
+        JSON.stringify(insight.sourceMemoryIds),
+        createdAt,
+      ]
+    );
+
+    return {
+      id,
+      userId: insight.userId,
+      content: insight.content,
+      sourceMemoryIds: insight.sourceMemoryIds,
+      createdAt,
+    };
   }
 
   /**
