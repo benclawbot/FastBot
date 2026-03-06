@@ -572,11 +572,17 @@ async function main() {
 
       io.to(session.id).emit("chat:stream:start", { sessionId: session.id });
 
+      let lastText = "";
       try {
         const response = await sendToAgent(data.actorId, data.content, {
           model: data.model || "opus",
           onProgress: (text) => {
-            io.to(session.id).emit("chat:stream:chunk", { sessionId: session.id, chunk: text });
+            // Only emit the new portion, not the full accumulated text
+            const newPortion = text.slice(lastText.length);
+            if (newPortion) {
+              io.to(session.id).emit("chat:stream:chunk", { sessionId: session.id, chunk: newPortion });
+              lastText = text;
+            }
           }
         });
 

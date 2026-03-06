@@ -33,6 +33,14 @@ export default function ChatPage() {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
+  const [selectedModel, setSelectedModel] = useState("opus");
+
+  // Available models
+  const MODELS = [
+    { id: "opus", name: "Opus", desc: "Most capable" },
+    { id: "sonnet", name: "Sonnet", desc: "Balanced" },
+    { id: "haiku", name: "Haiku", desc: "Fastest" },
+  ];
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -133,14 +141,15 @@ export default function ChatPage() {
   const sendMessage = useCallback((content: string, attachmentList?: Attachment[]) => {
     if (!socket || !connected) return;
 
-    socket.emit("chat:message", {
+    // Use Claude Agent for all messages
+    socket.emit("claude:message", {
       actorId: "user-1",
       content,
-      attachments: attachmentList,
+      model: selectedModel || "opus",
     });
 
     setAttachments([]);
-  }, [socket, connected]);
+  }, [socket, connected, selectedModel]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -327,15 +336,33 @@ export default function ChatPage() {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <div
-            className={`w-2 h-2 rounded-full ${
-              connected ? "bg-emerald-400 shadow-lg shadow-emerald-400/50" : "bg-red-500"
-            }`}
-          />
-          <span className="text-xs text-white/40">
-            {connected ? "Connected" : "Reconnecting..."}
-          </span>
+        <div className="flex items-center gap-4">
+          {/* Model Selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-white/40">Model:</span>
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white/80 focus:outline-none focus:border-emerald-500/50"
+            >
+              {MODELS.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          {/* Connection Status */}
+          <div className="flex items-center gap-2">
+            <div
+              className={`w-2 h-2 rounded-full ${
+                connected ? "bg-emerald-400 shadow-lg shadow-emerald-400/50" : "bg-red-500"
+              }`}
+            />
+            <span className="text-xs text-white/40">
+              {connected ? "Connected" : "Reconnecting..."}
+            </span>
+          </div>
         </div>
       </div>
 
