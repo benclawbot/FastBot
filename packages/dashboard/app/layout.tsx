@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   description: "Ultra-secure personal AI gateway",
   manifest: "/manifest.json",
   icons: {
-    icon: "/logo.jpg",
+    icon: "/favicon.svg",
     apple: "/logo.jpg",
   },
 };
