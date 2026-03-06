@@ -66,6 +66,11 @@ wsl --install
 
 ## Features
 
+- **Claudegram Integration** - Claude Code AI agent directly in your chatbot (via Anthropic Agent SDK)
+  - Use Claude Opus, Sonnet, or Haiku models
+  - Session persistence across messages
+  - Workspace directory management
+  - Configurable dangerous mode for file operations
 - **Telegram Bot** - Control your AI agent via Telegram (text, voice, photos, and documents)
 - **Multi-Provider LLM Router** - OpenAI, Anthropic, Google, Mistral, Cohere, DeepSeek, Groq, Ollama, MiniMax, and more
 - **Web Dashboard** - Next.js 14 PWA for mission control
@@ -133,6 +138,7 @@ wsl --install
 ├─────────────────────────────────────────────────────────────┤
 │  packages/gateway    — Node.js 22 + TypeScript            │
 │  ├── Socket.io hub for real-time communication           │
+│  ├── Claudegram handler (Claude Code Agent SDK)           │
 │  ├── Telegram bot command handler                         │
 │  ├── LLM router (OpenAI, Anthropic, Google, Ollama)    │
 │  ├── Skills manager for Claude Code skills              │
@@ -301,9 +307,22 @@ Edit `config.json` in `packages/gateway/`:
   },
   "tailscale": {
     "enabled": false
+  },
+  "claude": {
+    "executablePath": "/path/to/claude",
+    "workspaceDir": "/home/user/projects",
+    "dangerousMode": false
   }
 }
 ```
+
+#### Claude Configuration
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `executablePath` | string | - | Path to Claude Code CLI executable |
+| `workspaceDir` | string | cwd | Default working directory for Claude sessions |
+| `dangerousMode` | boolean | false | Allow file modifications without prompts |
 
 ### Running
 

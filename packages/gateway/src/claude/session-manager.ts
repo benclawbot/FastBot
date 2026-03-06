@@ -46,22 +46,7 @@ export function setClaudeSessionId(sessionKey: string, id: string): void {
   session.claudeSessionId = id;
 }
 
-export function getClaudeSessionId(sessionKey: string): string | undefined {
-  return sessions.get(sessionKey)?.claudeSessionId;
-}
-
 // Get dangerous mode from config
 export function isDangerousModeEnabled(): boolean {
   return getConfig().claude?.dangerousMode || process.env.DANGEROUS_MODE === "true" || false;
-}
-
-// Get Claude executable path from config
-export function getClaudeExecutablePath(): string | undefined {
-  return getConfig().claude?.executablePath || process.env.CLAUDE_EXECUTABLE_PATH;
-}
-
-// Update workspace directory
-export function setWorkspace(sessionKey: string, workspace: string): void {
-  const session = getSession(sessionKey);
-  session.workingDirectory = workspace;
 }

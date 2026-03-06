@@ -31,7 +31,9 @@
     }
   },
   "devDependencies": {
+    "@playwright/test": "1.58.2",
     "pm2": "^6.0.14",
+    "socket.io-client": "^4.8.3",
     "tsx": "^4.21.0"
   }
 }

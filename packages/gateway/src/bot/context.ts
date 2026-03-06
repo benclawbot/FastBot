@@ -118,11 +118,3 @@ function loadFile(filename: string): string {
   }
 }
 
-/**
- * Update a bot memory file
- */
-export function updateBotMemory(filename: string, content: string): void {
-  const path = join(BOT_DATA_DIR, filename);
-  // Note: This would need fs.writeFileSync - keeping simple for now
-  log.info({ filename }, "Memory update requested");
-}

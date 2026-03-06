@@ -215,27 +215,7 @@ export async function* runClaudeCode(
   }
 }
 
-/**
- * Run Claude Code and get full result (non-streaming)
- */
-export async function runClaudeCodeSync(
-  prompt: string,
-  options: ClaudeRunnerOptions = {}
-): Promise<string> {
-  let result = "";
-
-  for await (const chunk of runClaudeCode(prompt, options, {
-    onChunk: (text) => {
-      result += text;
-    },
-  })) {
-    // Just consume the generator
-  }
-
-  return result;
-}
-
-/**
+**
  * Check if Claude Code is available
  */
 export function isClaudeCodeAvailable(): boolean {
