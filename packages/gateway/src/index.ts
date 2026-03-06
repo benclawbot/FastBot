@@ -38,6 +38,7 @@ import * as SkillsManager from "./skills/manager.js";
 import { GoogleClient, GoogleSheetsClient, GoogleDriveClient } from "./integrations/google/index.js";
 import { MicrosoftClient } from "./integrations/microsoft.js";
 import { GitHubClient } from "./integrations/github.js";
+import { setupChatHandler } from "./claudegram/chat-handler.js";
 import type { AppConfig } from "./config/schema.js";
 
 const log = createChildLogger("gateway");
@@ -577,6 +578,12 @@ async function main() {
         messages: session.messages,
       });
     });
+
+    // ── Claudegram Chat Handler ──
+    // Set up claudegram agent handler for dashboard chat
+    if (isAuthenticated(socket)) {
+      setupChatHandler(io, socket);
+    }
 
     // ── Status ──
     socket.on("status:request", async () => {
