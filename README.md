@@ -258,11 +258,44 @@ FastBot uses Claude Code CLI for agent operations and skill management. After se
 | `allowedTools` | Tools Claude Code can use |
 | `thinking.budget` | Tokens for extended thinking |
 
-**Note:** Claude Code CLI is installed automatically during the FastBot setup process. The `dangerouslySkipPermissions: true` setting allows agents to execute tools without prompts.
+**Note:** Claude Code CLI is installed automatically during the FastBot setup process.
 
 ### Configuration
 
-Edit `config.json` in `packages/gateway/`:
+FastBot uses environment variables for sensitive credentials and a JSON file for settings.
+
+#### Environment Variables (.env)
+
+Copy `.env.example` to `.env` and fill in your values:
+
+```bash
+# REQUIRED - Telegram Bot
+SCB_TELEGRAM_TOKEN=your_telegram_bot_token_here
+
+# REQUIRED - LLM Provider
+SCB_LLM_PROVIDER=minimax  # or anthropic, openai, google, etc.
+SCB_LLM_API_KEY=your_llm_api_key_here
+SCB_LLM_MODEL=M2.5
+
+# REQUIRED - Security
+SCB_JWT_SECRET=your_secure_jwt_secret_min_32_chars
+SCB_PIN=your_secure_pin_for_encryption
+
+# OPTIONAL - Server
+SCB_PORT=44512
+
+# OPTIONAL - OAuth (GitHub, Google, Microsoft)
+SCB_GITHUB_CLIENT_ID=your_github_client_id
+SCB_GITHUB_CLIENT_SECRET=your_github_client_secret
+SCB_GOOGLE_CLIENT_ID=your_google_client_id
+SCB_GOOGLE_CLIENT_SECRET=your_google_client_secret
+SCB_MICROSOFT_CLIENT_ID=your_microsoft_client_id
+SCB_MICROSOFT_CLIENT_SECRET=your_microsoft_client_secret
+```
+
+#### Config.json Settings
+
+Edit `config.json` in `packages/gateway/` for non-sensitive settings:
 
 ```json
 {
@@ -272,7 +305,6 @@ Edit `config.json` in `packages/gateway/`:
     "host": "0.0.0.0"
   },
   "telegram": {
-    "botToken": "your_bot_token",
     "approvedUsers": [your_telegram_id],
     "voiceReplies": true,
     "voiceProvider": "gtts",
@@ -282,19 +314,15 @@ Edit `config.json` in `packages/gateway/`:
   "llm": {
     "primary": {
       "provider": "minimax",
-      "model": "M2.5",
-      "apiKey": "your_api_key"
+      "model": "M2.5"
     },
     "fallbacks": []
   },
   "voice": {
-    "provider": "gtts",
-    "elevenLabsApiKey": "your_elevenlabs_key"
+    "provider": "gtts"
   },
   "security": {
-    "pin": "your_pin",
-    "dashboardRateLimit": 60,
-    "jwtSecret": "auto-generated"
+    "dashboardRateLimit": 60
   },
   "agents": {
     "directory": "./data/agents",
@@ -309,7 +337,6 @@ Edit `config.json` in `packages/gateway/`:
     "enabled": false
   },
   "claude": {
-    "executablePath": "/path/to/claude",
     "workspaceDir": "/home/user/projects",
     "dangerousMode": false
   }
@@ -320,7 +347,6 @@ Edit `config.json` in `packages/gateway/`:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `executablePath` | string | - | Path to Claude Code CLI executable |
 | `workspaceDir` | string | cwd | Default working directory for Claude sessions |
 | `dangerousMode` | boolean | false | Allow file modifications without prompts |
 
