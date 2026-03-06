@@ -10,7 +10,7 @@ interface ChatMessage {
 }
 
 export function setupChatHandler(io: Server, socket: Socket) {
-  const userId = socket.data.userId;
+  const userId = (socket as any).user?.sub;
   if (!userId) {
     socket.emit('chat:error', { error: 'Authentication required' });
     return;
