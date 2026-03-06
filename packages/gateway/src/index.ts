@@ -376,16 +376,11 @@ async function main() {
         return;
       }
 
-      // Check for Claude Code build request
-      const lowerContent = data.content.toLowerCase();
-      const buildKeywords = [
-        "build", "create ", "make ", "write code", "implement",
-        "develop ", "code for", "make an app", "build an app",
-        "create a project", "build a project"
-      ];
-      const shouldUseClaudeCode = buildKeywords.some(kw => lowerContent.includes(kw));
+      // Use Claude Code for all messages when available
+      // This gives full tool execution capabilities (Write, Bash, Read, etc.)
+      const useClaudeCode = isClaudeCodeAvailable();
 
-      if (shouldUseClaudeCode && isClaudeCodeAvailable()) {
+      if (useClaudeCode) {
         const session = sessions.getOrCreate(data.actorId, "web");
         sessions.addMessage(session.id, "user", data.content);
 
@@ -398,7 +393,7 @@ async function main() {
 
         io.to(session.id).emit("chat:stream:start", { sessionId: session.id });
 
-        const startMsg = `I'll build that for you using Claude Code...\n\n`;
+        const startMsg = `Processing with Claude Code...\n\n`;
         io.to(session.id).emit("chat:stream:chunk", { sessionId: session.id, chunk: startMsg });
 
         try {
