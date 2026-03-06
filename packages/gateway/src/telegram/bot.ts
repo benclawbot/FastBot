@@ -930,7 +930,7 @@ export class TelegramBot {
       }
 
       // Rate limit check - use unified session ID to sync with web dashboard
-      const actorId = `user-1`;
+      const actorId = String(userId);
 
       // Check for stop command
       const content = botCtx.message.text.trim();
@@ -1026,7 +1026,7 @@ export class TelegramBot {
       if (!voice) return;
 
       // Rate limit check - use unified session ID to sync with web dashboard
-      const actorId = `user-1`;
+      const actorId = String(userId);
       if (!this.ctx.rateLimiter.consume(actorId)) {
         await botCtx.reply("Rate limited. Please wait a moment.");
         return;
@@ -1102,7 +1102,7 @@ export class TelegramBot {
       if (!photo || photo.length === 0) return;
 
       // Rate limit check
-      const actorId = `user-1`;
+      const actorId = String(userId);
       if (!this.ctx.rateLimiter.consume(actorId)) {
         await botCtx.reply("Rate limited. Please wait a moment.");
         return;
@@ -1194,7 +1194,7 @@ export class TelegramBot {
       if (!document) return;
 
       // Rate limit check
-      const actorId = `user-1`;
+      const actorId = String(userId);
       if (!this.ctx.rateLimiter.consume(actorId)) {
         await botCtx.reply("Rate limited. Please wait a moment.");
         return;
