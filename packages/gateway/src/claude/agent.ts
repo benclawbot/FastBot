@@ -1,5 +1,5 @@
 import { query } from '@anthropic-ai/claude-agent-sdk';
-import { getSession, setClaudeSessionId } from './session-manager.js';
+import { getSession, setClaudeSessionId, isDangerousModeEnabled } from './session-manager.js';
 import { setActiveQuery, clearActiveQuery } from './request-queue.js';
 
 export interface AgentResponse {
@@ -25,13 +25,14 @@ export async function sendToAgent(
   try {
     const controller = options.abortController || new AbortController();
     const existingSessionId = session.claudeSessionId;
+    const dangerousMode = isDangerousModeEnabled();
 
     const response = query({
       prompt: message,
       options: {
         cwd: session.workingDirectory,
         tools: ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep', 'Task'],
-        permissionMode: 'acceptEdits',
+        permissionMode: dangerousMode ? 'acceptEdits' : 'default',
         abortController: controller,
         systemPrompt: {
           type: 'preset' as const,

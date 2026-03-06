@@ -173,6 +173,15 @@ export const orchestrationConfigSchema = z
   })
   .optional();
 
+export const claudeConfigSchema = z.object({
+  /** Path to Claude Code CLI executable */
+  executablePath: z.string().optional(),
+  /** Default workspace directory for Claude sessions */
+  workspaceDir: z.string().default(process.cwd()),
+  /** Enable dangerous mode (allows file modifications) */
+  dangerousMode: z.boolean().default(false),
+});
+
 export const agentsConfigSchema = z
   .object({
     /** Agents directory path */
@@ -212,6 +221,7 @@ export const appConfigSchema = z.object({
   tailscale: tailscaleConfigSchema,
   agents: agentsConfigSchema,
   orchestration: orchestrationConfigSchema,
+  claude: claudeConfigSchema.optional(),
 }).transform((val) => ({
   server: serverConfigSchema.parse(val.server ?? {}),
   telegram: telegramConfigSchema.parse(val.telegram ?? {}),
@@ -226,6 +236,7 @@ export const appConfigSchema = z.object({
   tailscale: val.tailscale,
   agents: val.agents,
   orchestration: val.orchestration,
+  claude: claudeConfigSchema.parse(val.claude ?? {}),
 }));
 
 export type AppConfig = z.infer<typeof appConfigSchema>;
@@ -243,3 +254,4 @@ export type GithubConfig = z.infer<typeof githubConfigSchema>;
 export type Agent = z.infer<typeof agentSchema>;
 export type AgentsConfig = z.infer<typeof agentsConfigSchema>;
 export type OrchestrationConfig = z.infer<typeof orchestrationConfigSchema>;
+export type ClaudeConfig = z.infer<typeof claudeConfigSchema>;
