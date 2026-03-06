@@ -5,6 +5,9 @@ import { chunkMessage } from "./chunker.js";
 import { getBotSystemPrompt } from "../bot/context.js";
 import { MediaHandler } from "../media/handler.js";
 import type { GatewayContext } from "../index.js";
+// Claudegram imports
+import { sendToAgent, sendLoopToAgent, clearConversation } from "../claudegram/claude/agent.js";
+import { sessionManager } from "../claudegram/claude/session-manager.js";
 
 const log = createChildLogger("telegram");
 
@@ -44,6 +47,11 @@ export class TelegramBot {
         { command: "voice", description: "Enable voice replies" },
         { command: "text", description: "Disable voice replies" },
         { command: "models", description: "List available LLM models" },
+        { command: "project", description: "Set working directory" },
+        { command: "plan", description: "Plan mode" },
+        { command: "explore", description: "Explore mode" },
+        { command: "loop", description: "Iterative mode" },
+        { command: "clear", description: "Clear conversation" },
       ]);
       log.info("Bot commands registered");
     } catch (err) {
@@ -142,9 +150,125 @@ export class TelegramBot {
           `/status - Check system status\n` +
           `/voice - Enable voice replies\n` +
           `/text - Disable voice replies\n` +
-          `/models - List available LLM models`,
+          `/models - List available LLM models\n\n` +
+          `*Claudegram Commands*\n\n` +
+          `/project <dir> - Set working directory\n` +
+          `/plan <task> - Plan mode\n` +
+          `/explore <question> - Explore mode\n` +
+          `/loop <task> - Iterative mode\n` +
+          `/clear - Clear conversation`,
         { parse_mode: "Markdown" }
       );
+    });
+
+    // ── Claudegram Commands ──
+
+    // /project command
+    this.bot.command("project", async (botCtx) => {
+      const userId = botCtx.from?.id;
+      if (!userId || !this.approval.isApproved(userId)) {
+        await botCtx.reply("Not authorized.");
+        return;
+      }
+
+      const args = botCtx.message?.text.split(" ").slice(1).join(" ");
+      if (!args) {
+        await botCtx.reply("Usage: /project /path/to/directory");
+        return;
+      }
+
+      const sessionKey = `telegram:${userId}`;
+      sessionManager.setWorkingDirectory(sessionKey, args);
+      clearConversation(sessionKey);
+      await botCtx.reply(`✅ Project set to: ${args}`);
+    });
+
+    // /plan command
+    this.bot.command("plan", async (botCtx) => {
+      const userId = botCtx.from?.id;
+      if (!userId || !this.approval.isApproved(userId)) {
+        await botCtx.reply("Not authorized.");
+        return;
+      }
+
+      const task = botCtx.message?.text.split(" ").slice(1).join(" ");
+      if (!task) {
+        await botCtx.reply("Usage: /plan build a todo app");
+        return;
+      }
+
+      const sessionKey = `telegram:${userId}`;
+      await botCtx.replyWithChatAction("typing");
+
+      try {
+        const response = await sendToAgent(sessionKey, task, { command: "plan" });
+        await this.sendResponse(userId, response.text);
+      } catch (err) {
+        await botCtx.reply(`Error: ${err instanceof Error ? err.message : "Unknown error"}`);
+      }
+    });
+
+    // /explore command
+    this.bot.command("explore", async (botCtx) => {
+      const userId = botCtx.from?.id;
+      if (!userId || !this.approval.isApproved(userId)) {
+        await botCtx.reply("Not authorized.");
+        return;
+      }
+
+      const question = botCtx.message?.text.split(" ").slice(1).join(" ");
+      if (!question) {
+        await botCtx.reply("Usage: /explore how does auth work");
+        return;
+      }
+
+      const sessionKey = `telegram:${userId}`;
+      await botCtx.replyWithChatAction("typing");
+
+      try {
+        const response = await sendToAgent(sessionKey, question, { command: "explore" });
+        await this.sendResponse(userId, response.text);
+      } catch (err) {
+        await botCtx.reply(`Error: ${err instanceof Error ? err.message : "Unknown error"}`);
+      }
+    });
+
+    // /loop command
+    this.bot.command("loop", async (botCtx) => {
+      const userId = botCtx.from?.id;
+      if (!userId || !this.approval.isApproved(userId)) {
+        await botCtx.reply("Not authorized.");
+        return;
+      }
+
+      const task = botCtx.message?.text.split(" ").slice(1).join(" ");
+      if (!task) {
+        await botCtx.reply("Usage: /loop fix all bugs");
+        return;
+      }
+
+      const sessionKey = `telegram:${userId}`;
+      await botCtx.replyWithChatAction("typing");
+
+      try {
+        const response = await sendLoopToAgent(sessionKey, task);
+        await this.sendResponse(userId, response.text);
+      } catch (err) {
+        await botCtx.reply(`Error: ${err instanceof Error ? err.message : "Unknown error"}`);
+      }
+    });
+
+    // /clear command
+    this.bot.command("clear", async (botCtx) => {
+      const userId = botCtx.from?.id;
+      if (!userId || !this.approval.isApproved(userId)) {
+        await botCtx.reply("Not authorized.");
+        return;
+      }
+
+      const sessionKey = `telegram:${userId}`;
+      clearConversation(sessionKey);
+      await botCtx.reply("✅ Conversation cleared");
     });
 
     // /models command
