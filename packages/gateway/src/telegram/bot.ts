@@ -177,7 +177,7 @@ export class TelegramBot {
         return;
       }
 
-      const sessionKey = `telegram:${userId}`;
+      const sessionKey = `user:${userId}`;
       sessionManager.setWorkingDirectory(sessionKey, args);
       clearConversation(sessionKey);
       await botCtx.reply(`✅ Project set to: ${args}`);
@@ -197,7 +197,7 @@ export class TelegramBot {
         return;
       }
 
-      const sessionKey = `telegram:${userId}`;
+      const sessionKey = `user:${userId}`;
       await botCtx.replyWithChatAction("typing");
 
       try {
@@ -222,7 +222,7 @@ export class TelegramBot {
         return;
       }
 
-      const sessionKey = `telegram:${userId}`;
+      const sessionKey = `user:${userId}`;
       await botCtx.replyWithChatAction("typing");
 
       try {
@@ -247,7 +247,7 @@ export class TelegramBot {
         return;
       }
 
-      const sessionKey = `telegram:${userId}`;
+      const sessionKey = `user:${userId}`;
       await botCtx.replyWithChatAction("typing");
 
       try {
@@ -266,7 +266,7 @@ export class TelegramBot {
         return;
       }
 
-      const sessionKey = `telegram:${userId}`;
+      const sessionKey = `user:${userId}`;
       clearConversation(sessionKey);
       await botCtx.reply("✅ Conversation cleared");
     });

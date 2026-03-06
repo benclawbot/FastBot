@@ -19,8 +19,8 @@ export function setupChatHandler(io: Server, socket: Socket) {
   // Join user's session room
   socket.join(`user:${userId}`);
 
-  // Get or create session for this user
-  const sessionKey = `dashboard:${userId}`;
+  // Get or create session for this user (shared with Telegram)
+  const sessionKey = `user:${userId}`;
   let session = sessionManager.getSession(sessionKey);
 
   // Initialize session if not exists (use home directory as default)
