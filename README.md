@@ -326,8 +326,14 @@ npx pm2 restart all
 **Orchestration** starts automatically with PM2. For manual start:
 ```bash
 cd packages/orchestration
+pip install --upgrade pip setuptools wheel
 pip install crewai pydantic sqlalchemy
 python -m src.scb_orchestration.server
+```
+
+**Note:** To fix known security vulnerabilities, ensure pip and dependencies are up to date:
+```bash
+pip install --upgrade pip setuptools wheel urllib3 requests
 ```
 
 ## Packages

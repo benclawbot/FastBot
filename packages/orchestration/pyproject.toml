@@ -21,3 +21,12 @@ build-backend = "hatchling.build"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+
+[tool.pip]
+# Security fixes - ensure pip is updated and install with security fixes
+constraints = [
+    "pip>=21.0",
+    "urllib3>=1.26.4",
+    "requests>=2.31.0",
+    "cryptography>=41.0.0",
+]

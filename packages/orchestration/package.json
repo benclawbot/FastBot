@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "PYTHONPATH=./src python3 -m scb_orchestration",
     "start": "PYTHONPATH=./src python3 -m scb_orchestration",
-    "test": "pytest"
+    "test": "pytest",
+    "postinstall": "pip install --upgrade pip setuptools wheel && pip install crewai pydantic sqlalchemy"
   },
   "dependencies": {
     "crewai": "^1.0.1"
