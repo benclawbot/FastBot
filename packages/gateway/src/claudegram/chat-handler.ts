@@ -51,6 +51,17 @@ export function setupChatHandler(io: Server, socket: Socket) {
     // Check for commands
     if (content.startsWith('/project ')) {
       const newPath = content.slice(9).trim();
+
+      // Validate path - prevent path traversal
+      if (newPath.includes('..') || newPath.startsWith('/') || /^[a-zA-Z]:/.test(newPath)) {
+        socket.emit('chat:message', {
+          role: 'assistant',
+          content: 'Invalid path. Use a relative path without traversal.',
+          ts: Date.now(),
+        });
+        return;
+      }
+
       session = sessionManager.setWorkingDirectory(sessionKey, newPath);
       clearConversation(sessionKey);
       socket.emit('chat:message', {

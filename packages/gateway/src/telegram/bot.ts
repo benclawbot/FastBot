@@ -13,6 +13,7 @@ const log = createChildLogger("telegram");
 
 const RECONNECT_BASE_MS = 2_000;
 const RECONNECT_MAX_MS = 60_000;
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB limit for file downloads
 
 export class TelegramBot {
   private bot: Bot;
@@ -1037,8 +1038,13 @@ export class TelegramBot {
         const file = await botCtx.api.getFile(voice.file_id);
         const fileUrl = `https://api.telegram.org/file/bot${this.ctx.config.telegram.botToken}/${file.file_path}`;
 
-        // Fetch and convert to buffer
-        const response = await fetch(fileUrl);
+        // Fetch with size validation and timeout
+        const response = await fetch(fileUrl, { signal: AbortSignal.timeout(30_000) });
+        const contentLength = response.headers.get("content-length");
+        if (contentLength && parseInt(contentLength, 10) > MAX_FILE_SIZE) {
+          await botCtx.reply("File too large. Maximum size is 25MB.");
+          return;
+        }
         const buffer = Buffer.from(await response.arrayBuffer());
 
         // Transcribe using Whisper
@@ -1115,7 +1121,12 @@ export class TelegramBot {
         // Download the photo
         const file = await botCtx.api.getFile(largestPhoto.file_id);
         const fileUrl = `https://api.telegram.org/file/bot${this.ctx.config.telegram.botToken}/${file.file_path}`;
-        const response = await fetch(fileUrl);
+        const response = await fetch(fileUrl, { signal: AbortSignal.timeout(30_000) });
+        const contentLength = response.headers.get("content-length");
+        if (contentLength && parseInt(contentLength, 10) > MAX_FILE_SIZE) {
+          await botCtx.reply("File too large. Maximum size is 25MB.");
+          return;
+        }
         const buffer = Buffer.from(await response.arrayBuffer());
 
         // Determine mime type from file_path
@@ -1204,7 +1215,12 @@ export class TelegramBot {
         // Download the document
         const file = await botCtx.api.getFile(document.file_id);
         const fileUrl = `https://api.telegram.org/file/bot${this.ctx.config.telegram.botToken}/${file.file_path}`;
-        const response = await fetch(fileUrl);
+        const response = await fetch(fileUrl, { signal: AbortSignal.timeout(30_000) });
+        const contentLength = response.headers.get("content-length");
+        if (contentLength && parseInt(contentLength, 10) > MAX_FILE_SIZE) {
+          await botCtx.reply("File too large. Maximum size is 25MB.");
+          return;
+        }
         const buffer = Buffer.from(await response.arrayBuffer());
 
         // Get filename and mime type

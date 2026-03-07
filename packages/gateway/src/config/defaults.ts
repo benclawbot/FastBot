@@ -21,6 +21,9 @@ export const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
 /** Session reaper interval: every 5 minutes */
 export const SESSION_REAPER_INTERVAL_MS = 5 * 60 * 1000;
 
+/** Maximum number of active sessions */
+export const MAX_SESSIONS = 100;
+
 /** Heartbeat interval: every 30 seconds */
 export const HEARTBEAT_INTERVAL_MS = 30 * 1000;
 

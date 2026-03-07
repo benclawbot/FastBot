@@ -29,6 +29,7 @@ export default function ChatPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredCommands, setFilteredCommands] = useState(COMMANDS);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -47,25 +48,25 @@ export default function ChatPage() {
   useEffect(() => {
     if (!socket || !connected) return;
 
-    socket.on("session:joined", (data: { sessionId: string; messages: Array<{ role: string; content: string; ts: number }> }) => {
+    const onSessionJoined = (data: { sessionId: string; messages: Array<{ role: string; content: string; ts: number }> }) => {
       setSessionId(data.sessionId);
       setMessages(data.messages);
-    });
+    };
 
-    socket.on("session:info", (data: SessionInfo) => {
+    const onSessionInfo = (data: SessionInfo) => {
       setSessionInfo(data);
-    });
+    };
 
-    socket.on("chat:message", (data: { role: string; content: string; ts: number }) => {
+    const onChatMessage = (data: { role: string; content: string; ts: number }) => {
       setMessages(prev => [...prev, { role: data.role, content: data.content, ts: data.ts }]);
-    });
+    };
 
-    socket.on("chat:stream:start", () => {
+    const onStreamStart = () => {
       setStreaming(true);
       setMessages(prev => [...prev, { role: "assistant", content: "", ts: Date.now() }]);
-    });
+    };
 
-    socket.on("chat:stream:chunk", (data: { chunk: string }) => {
+    const onStreamChunk = (data: { chunk: string }) => {
       setMessages(prev => {
         const updated = [...prev];
         const last = updated[updated.length - 1];
@@ -74,22 +75,34 @@ export default function ChatPage() {
         }
         return updated;
       });
-    });
+    };
 
-    socket.on("chat:stream:end", () => {
+    const onStreamEnd = () => {
       setStreaming(false);
-    });
+    };
 
-    // Request session info
+    socket.on("session:joined", onSessionJoined);
+    socket.on("session:info", onSessionInfo);
+    socket.on("chat:message", onChatMessage);
+    socket.on("chat:stream:start", onStreamStart);
+    socket.on("chat:stream:chunk", onStreamChunk);
+    socket.on("chat:stream:end", onStreamEnd);
+
+    // Request session info with timeout
+    const timeout = setTimeout(() => {
+      setError("Connection timed out. Please refresh.");
+    }, 15000);
+
     socket.emit("session:info");
 
     return () => {
-      socket.off("session:joined");
-      socket.off("session:info");
-      socket.off("chat:message");
-      socket.off("chat:stream:start");
-      socket.off("chat:stream:chunk");
-      socket.off("chat:stream:end");
+      clearTimeout(timeout);
+      socket.off("session:joined", onSessionJoined);
+      socket.off("session:info", onSessionInfo);
+      socket.off("chat:message", onChatMessage);
+      socket.off("chat:stream:start", onStreamStart);
+      socket.off("chat:stream:chunk", onStreamChunk);
+      socket.off("chat:stream:end", onStreamEnd);
     };
   }, [socket, connected]);
 

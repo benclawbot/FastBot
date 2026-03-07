@@ -4,6 +4,7 @@ import {
   SESSION_TIMEOUT_MS,
   SESSION_REAPER_INTERVAL_MS,
   DEBOUNCE_WINDOW_MS,
+  MAX_SESSIONS,
 } from "../config/defaults.js";
 
 const log = createChildLogger("session");
@@ -49,6 +50,11 @@ export class SessionManager {
       return session;
     }
 
+    // Enforce session limit with LRU eviction
+    if (this.sessions.size >= MAX_SESSIONS) {
+      this.evictOldestSession();
+    }
+
     const id = randomBytes(16).toString("hex");
     const session: Session = {
       id,
@@ -62,7 +68,7 @@ export class SessionManager {
     };
     this.sessions.set(id, session);
     this.actorIndex.set(actorId, id);
-    log.info({ sessionId: id, actorId, origin }, "Session created");
+    log.info({ sessionId: id, actorId, origin, total: this.sessions.size }, "Session created");
     return session;
   }
 
@@ -168,6 +174,27 @@ export class SessionManager {
    */
   listActive(): Session[] {
     return Array.from(this.sessions.values());
+  }
+
+  /**
+   * Evict the oldest session (LRU eviction).
+   */
+  private evictOldestSession(): void {
+    let oldest: Session | null = null;
+    let oldestId: string | null = null;
+
+    for (const [id, session] of this.sessions) {
+      if (!oldest || session.lastActivity < oldest.lastActivity) {
+        oldest = session;
+        oldestId = id;
+      }
+    }
+
+    if (oldestId) {
+      this.actorIndex.delete(oldest!.actorId);
+      this.sessions.delete(oldestId);
+      log.info({ sessionId: oldestId, actorId: oldest!.actorId }, "Session evicted (LRU)");
+    }
   }
 
   private startReaper(): void {

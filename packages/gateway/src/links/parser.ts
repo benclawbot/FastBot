@@ -9,6 +9,8 @@ import { isUrlSafe } from "../security/ssrf.js";
 
 const log = createChildLogger("links");
 
+const MAX_RESPONSE_SIZE = 10 * 1024 * 1024; // 10MB limit
+
 export interface ParsedLink {
   url: string;
   title: string;
@@ -43,14 +45,44 @@ export async function parseLink(url: string): Promise<ParsedLink> {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
 
-  const html = await response.text();
+  // Check content-length header first
+  const contentLength = response.headers.get("content-length");
+  if (contentLength && parseInt(contentLength, 10) > MAX_RESPONSE_SIZE) {
+    throw new Error(`Response too large (${contentLength} bytes). Maximum is 10MB.`);
+  }
+
+  // Read with size limit using readable stream
+  const streamReader = response.body?.getReader();
+  if (!streamReader) {
+    throw new Error("Failed to read response body");
+  }
+
+  const chunks: Uint8Array[] = [];
+  let totalSize = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await streamReader.read();
+      if (done) break;
+
+      totalSize += value.length;
+      if (totalSize > MAX_RESPONSE_SIZE) {
+        throw new Error(`Response exceeded 10MB limit. Stopped at ${totalSize} bytes.`);
+      }
+      chunks.push(value);
+    }
+  } finally {
+    streamReader.releaseLock();
+  }
+
+  const html = new TextDecoder().decode(Buffer.concat(chunks));
 
   // Parse with linkedom (server-side DOM)
   const { document } = parseHTML(html);
 
   // Extract with Readability
-  const reader = new Readability(document as any);
-  const article = reader.parse();
+  const readability = new Readability(document as any);
+  const article = readability.parse();
 
   if (!article) {
     // Fallback: extract text from body

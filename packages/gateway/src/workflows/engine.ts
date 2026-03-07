@@ -15,6 +15,7 @@ export interface WorkflowStep {
   condition?: string;
   onError?: "stop" | "skip" | "retry";
   retries?: number;
+  timeout?: number; // Timeout in seconds (default: 60)
 }
 
 export interface WorkflowDef {
@@ -213,10 +214,16 @@ export class WorkflowEngine {
 
     // Execute with optional retries
     const maxAttempts = (step.retries ?? 0) + 1;
+    const timeoutSeconds = step.timeout ?? 60;
+    const timeoutMs = timeoutSeconds * 1000;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        const output = await handler(resolvedParams, run.variables);
+        // Execute with timeout
+        const output = await this.executeWithTimeout(
+          () => handler(resolvedParams, run.variables),
+          timeoutMs
+        );
 
         // Store output in variables for subsequent steps
         run.variables[`${step.name}.output`] = output;
@@ -305,5 +312,28 @@ export class WorkflowEngine {
     }
 
     return resolved;
+  }
+
+  /**
+   * Execute a function with a timeout.
+   * Rejects with timeout error if execution exceeds specified milliseconds.
+   */
+  private async executeWithTimeout<T>(
+    fn: () => Promise<T>,
+    timeoutMs: number
+  ): Promise<T> {
+    let timeoutId: NodeJS.Timeout;
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new Error(`Step timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
+    });
+
+    try {
+      return await Promise.race([fn(), timeoutPromise]);
+    } finally {
+      clearTimeout(timeoutId!);
+    }
   }
 }

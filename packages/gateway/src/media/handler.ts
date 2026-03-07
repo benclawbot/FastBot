@@ -4,7 +4,7 @@
  */
 import { createChildLogger } from "../logger/index.js";
 import { mkdirSync, existsSync, writeFileSync, readFileSync, unlinkSync, readdirSync, statSync } from "node:fs";
-import { resolve, extname, basename } from "node:path";
+import { resolve, extname, basename, relative } from "node:path";
 import { randomBytes } from "node:crypto";
 import { MEDIA_DIR } from "../config/defaults.js";
 import { extractTextFromImage, isImageOcrSupported } from "../ocr/image.js";
@@ -306,15 +306,26 @@ export class MediaHandler {
   // ── Private ──
 
   private resolvePath(filenameOrId: string): string | null {
+    // Prevent path traversal - strip any directory components
+    const safeName = basename(filenameOrId);
+
     // Direct filename
-    const direct = resolve(this.storageDir, basename(filenameOrId));
-    if (existsSync(direct)) return direct;
+    const direct = resolve(this.storageDir, safeName);
+    // Verify path is still within storageDir
+    if (existsSync(direct) && !direct.startsWith("..") && relative(this.storageDir, direct).startsWith("..") === false) {
+      return direct;
+    }
 
     // Try to find by ID prefix
     if (!existsSync(this.storageDir)) return null;
     const files = readdirSync(this.storageDir);
-    const match = files.find((f) => f.startsWith(filenameOrId));
-    return match ? resolve(this.storageDir, match) : null;
+    const match = files.find((f) => f.startsWith(safeName));
+    if (!match) return null;
+
+    const resolved = resolve(this.storageDir, match);
+    // Verify path is within storageDir
+    if (relative(this.storageDir, resolved).startsWith("..")) return null;
+    return resolved;
   }
 
   private mimeToExt(mime: string): string {

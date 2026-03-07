@@ -5,6 +5,33 @@ import { useSocket } from "./socket";
 import type { ChatMessage, SystemStatus } from "./types";
 
 /**
+ * Utility to emit a socket event and wait for response with timeout.
+ * Returns cleanup function that removes listener and clears timeout.
+ */
+export function emitWithTimeout<T>(
+  socket: any,
+  event: string,
+  data: any,
+  responseEvent: string,
+  onResponse: (data: T) => void,
+  timeoutMs = 15000
+): () => void {
+  socket.emit(event, data);
+
+  const handle = setTimeout(() => {
+    socket.off(responseEvent, onResponse);
+    onResponse({ error: "timeout" } as any);
+  }, timeoutMs);
+
+  socket.on(responseEvent, onResponse);
+
+  return () => {
+    clearTimeout(handle);
+    socket.off(responseEvent, onResponse);
+  };
+}
+
+/**
  * Generate a stable actor ID for this browser tab.
  * Persisted in sessionStorage so refreshes keep the same session.
  */
@@ -122,14 +149,15 @@ export function useStatus(intervalMs = 5000) {
 
     const request = () => socket.emit("status:request");
 
-    socket.on("status:update", (data: SystemStatus) => setStatus(data));
+    const onStatusUpdate = (data: SystemStatus) => setStatus(data);
+    socket.on("status:update", onStatusUpdate);
 
     // Request immediately and then at interval
     request();
     const handle = setInterval(request, intervalMs);
 
     return () => {
-      socket.off("status:update");
+      socket.off("status:update", onStatusUpdate);
       clearInterval(handle);
     };
   }, [socket, connected, intervalMs]);

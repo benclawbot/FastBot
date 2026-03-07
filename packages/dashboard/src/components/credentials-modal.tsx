@@ -52,7 +52,9 @@ export function CredentialsModal({ isOpen, onComplete }: CredentialsModalProps) 
       baseUrl: llmBaseUrl || undefined,
     });
 
-    socket.once("setup:done", (data: { success: boolean; error?: string; token?: string }) => {
+    const onSetupDone = (data: { success: boolean; error?: string; token?: string }) => {
+      clearTimeout(timeoutHandle);
+      socket.off("setup:done", onSetupDone);
       setLoading(false);
       if (data.success) {
         if (data.token) {
@@ -64,13 +66,16 @@ export function CredentialsModal({ isOpen, onComplete }: CredentialsModalProps) 
       } else {
         setError(data.error || "Failed to save credentials");
       }
-    });
+    };
 
-    // Timeout after 30 seconds
-    setTimeout(() => {
+    socket.on("setup:done", onSetupDone);
+
+    // Timeout after 15 seconds
+    const timeoutHandle = setTimeout(() => {
+      socket.off("setup:done", onSetupDone);
       setLoading(false);
       setError("Request timed out. Please try again.");
-    }, 30000);
+    }, 15000);
   };
 
   return (
