@@ -2027,6 +2027,11 @@ async function main() {
   const memoryRouter = createMemoryRouter(memoryAgent, jwtSecret);
   expressApp.use("/api/memory", memoryRouter);
 
+  // Mount health check router
+  const { createHealthRouter, setStartTime } = await import("./resilience/health.js");
+  const healthRouter = createHealthRouter(config, llmRouter);
+  expressApp.use("/api/health", healthRouter);
+
   // Simple HTTP endpoint for dashboard to discover gateway port and serve media
   httpServer.on("request", (req, res) => {
     const url = req.url || "";
@@ -2076,6 +2081,9 @@ async function main() {
   }
 
   httpServer.listen(actualPort, host, async () => {
+    // Set start time for health check uptime
+    setStartTime(Date.now());
+    
     const externalIPs = await getExternalIPs();
     const dashboardPort = config.server.dashboardPort;
 

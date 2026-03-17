@@ -10,6 +10,8 @@ import { createMinimax } from "vercel-minimax-ai-provider";
 import { createOllama } from "ollama-ai-provider";
 import { createChildLogger } from "../logger/index.js";
 import { UsageTracker } from "./usage.js";
+import { circuitBreaker, CircuitBreaker } from "../resilience/circuit-breaker.js";
+import { withRetry, withTimeout } from "../resilience/retry.js";
 import type { LlmProvider, LlmConfig } from "../config/schema.js";
 
 const log = createChildLogger("llm:router");
@@ -64,8 +66,10 @@ function createModel(provider: LlmProvider): any {
 
 export class LlmRouter {
   private usage = new UsageTracker();
+  public breaker: CircuitBreaker;
 
   constructor(private config: LlmConfig) {
+    this.breaker = circuitBreaker;
     log.info(
       {
         primary: config.primary.provider,
@@ -279,6 +283,7 @@ export class LlmRouter {
   /**
    * Generate a full response (non-streaming).
    * Tries primary, then fallbacks in order.
+   * Includes retry with exponential backoff and circuit breaker.
    */
   async generate(
     messages: any[],
@@ -288,15 +293,46 @@ export class LlmRouter {
     const providers = [this.config.primary, ...this.config.fallbacks];
 
     for (const provider of providers) {
-      try {
-        const model = createModel(provider);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const result = await generateText({
-          model: model as any,
-          messages,
-          ...(systemPrompt ? { system: systemPrompt } : {}),
-        });
+      const circuitKey = `${provider.provider}:${provider.model}`;
+      
+      // Check circuit breaker
+      if (!this.breaker.isAvailable(circuitKey)) {
+        log.warn({ circuitKey }, "Circuit breaker open, skipping provider");
+        continue;
+      }
 
+      try {
+        const result = await withRetry(
+          async () => {
+            return withTimeout(
+              async () => {
+                const model = createModel(provider);
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                return await generateText({
+                  model: model as any,
+                  messages,
+                  ...(systemPrompt ? { system: systemPrompt } : {}),
+                });
+              },
+              30000,
+              `LLM request timed out after 30s`
+            );
+          },
+          {
+            maxAttempts: 3,
+            baseDelay: 1000,
+            maxDelay: 4000,
+            onRetry: (attempt, error) => {
+              log.warn(
+                { provider: provider.provider, attempt, error: error.message },
+                "LLM request retry"
+              );
+            },
+          }
+        );
+
+        this.breaker.recordSuccess(circuitKey);
+        
         this.usage.record(
           provider.provider,
           provider.model,
@@ -321,6 +357,7 @@ export class LlmRouter {
           model: provider.model,
         };
       } catch (err) {
+        this.breaker.recordFailure(circuitKey);
         log.warn(
           { provider: provider.provider, model: provider.model, err },
           "LLM provider failed, trying fallback"
@@ -334,6 +371,7 @@ export class LlmRouter {
   /**
    * Stream a response. Yields text chunks.
    * Tries primary, then fallbacks in order.
+   * Includes circuit breaker and timeout.
    */
   async *stream(
     messages: any[],
@@ -345,6 +383,14 @@ export class LlmRouter {
     let lastError: Error | null = null;
 
     for (const provider of providers) {
+      const circuitKey = `${provider.provider}:${provider.model}`;
+      
+      // Check circuit breaker
+      if (!this.breaker.isAvailable(circuitKey)) {
+        log.warn({ circuitKey }, "Circuit breaker open, skipping provider");
+        continue;
+      }
+
       try {
         // Validate config before attempting request
         if (provider.provider !== "ollama" && (!provider.apiKey || provider.apiKey === "YOUR_ANTHROPIC_API_KEY_HERE")) {
@@ -354,6 +400,17 @@ export class LlmRouter {
         }
 
         const model = createModel(provider);
+
+        // Create abort controller for timeout
+        const timeoutController = new AbortController();
+        const timeoutId = setTimeout(() => {
+          timeoutController.abort(new Error("LLM stream timed out after 30s"));
+        }, 30000);
+
+        // Merge abort signals
+        const combinedSignal = abortSignal
+          ? new AbortSignal([abortSignal, timeoutController.signal])
+          : timeoutController.signal;
 
         const result = streamText({
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -411,6 +468,10 @@ export class LlmRouter {
 
         return; // Success - exit the loop
       } catch (err) {
+        // Clear timeout on error
+        clearTimeout(timeoutId);
+        
+        this.breaker.recordFailure(circuitKey);
         lastError = err instanceof Error ? err : new Error(String(err));
         log.warn(
           { provider: provider.provider, model: provider.model, err: lastError },
