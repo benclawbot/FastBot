@@ -1,0 +1,42 @@
+name: Refresh transitive dependencies (maintenance only)
+
+on:
+  push:
+    branches:
+      - maintenance/transitive-dependency-refresh-20261013
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - name: Refresh all dependency resolutions within manifest version ranges
+        run: pnpm update --recursive --lockfile-only --ignore-scripts
+      - name: Ensure package manifests are unchanged
+        run: |
+          if git diff --name-only | grep -v '^pnpm-lock.yaml$' | grep -q .; then
+            echo 'Unexpected manifest change. Stop instead of committing.'
+            git diff --name-only
+            exit 1
+          fi
+      - name: Commit refreshed lockfile
+        run: |
+          git add pnpm-lock.yaml
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'chore(lockfile): refresh supported transitive dependencies'
+            git push origin HEAD:maintenance/transitive-dependency-refresh-20261013
+          fi
