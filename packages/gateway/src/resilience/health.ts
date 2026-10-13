@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import { createChildLogger } from "../logger/index.js";
 import { circuitBreaker } from "./circuit-breaker.js";
 import { LlmRouter } from "../llm/router.js";
-import type { FastBotConfig } from "../config/index.js";
+import type { AppConfig } from "../config/schema.js";
 
 const log = createChildLogger("health");
 
@@ -30,7 +30,7 @@ export function setStartTime(time: number): void {
   startTime = time;
 }
 
-export function createHealthRouter(config: FastBotConfig, llmRouter?: LlmRouter): Router {
+export function createHealthRouter(_config: AppConfig, llmRouter?: LlmRouter): Router {
   const router = Router();
 
   /**
