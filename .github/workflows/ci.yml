@@ -48,6 +48,10 @@ jobs:
       - name: Test gateway
         run: pnpm --filter @fastbot/gateway run test
 
+      - name: Smoke-test Sharp native image pipeline
+        run: |
+          pnpm --filter @fastbot/gateway exec node --input-type=module -e "import sharp from 'sharp'; const png = await sharp({ create: { width: 2, height: 2, channels: 4, background: '#ffffff' } }).png().toBuffer(); const info = await sharp(png).metadata(); if (info.width !== 2 || info.height !== 2) process.exit(1);"
+
       - name: Build JavaScript workspaces
         run: |
           pnpm --filter @fastbot/gateway run build

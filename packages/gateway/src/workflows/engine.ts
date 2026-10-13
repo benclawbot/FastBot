@@ -2,7 +2,7 @@
  * YAML Workflow Engine — define and execute multi-step pipelines.
  * Steps run sequentially with conditional branching and variable passing.
  */
-import yaml from "js-yaml";
+import * as yaml from "js-yaml";
 import { createChildLogger } from "../logger/index.js";
 import type { AuditLog } from "../logger/audit.js";
 
