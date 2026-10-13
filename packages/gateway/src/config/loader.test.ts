@@ -39,7 +39,7 @@ describe("config loader", () => {
     const config = loadConfig(TEST_CONFIG);
     expect(config.telegram.botToken).toBe("123:ABC");
     expect(config.llm.primary.provider).toBe("anthropic");
-    expect(config.server.port).toBe(18789); // default
+    expect(config.server.port).toBe(44512); // default
     expect(config.security.dashboardRateLimit).toBe(60); // default
   });
 
@@ -91,8 +91,8 @@ describe("config loader", () => {
     );
 
     const config = loadConfig(TEST_CONFIG);
-    expect(config.server.port).toBe(18789);
-    expect(config.server.host).toBe("127.0.0.1");
+    expect(config.server.port).toBe(44512);
+    expect(config.server.host).toBe("0.0.0.0");
     expect(config.telegram.rateLimit).toBe(20);
     expect(config.telegram.approvedUsers).toEqual([]);
     expect(config.memory.dbPath).toBe("data/scb.db");

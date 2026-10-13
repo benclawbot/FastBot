@@ -81,7 +81,8 @@ describe("AuditLog", () => {
   it("audit entries have timestamps", () => {
     audit.log({ event: "session.created", actor: "system" });
     const rows = audit.query();
-    expect((rows[0] as any).timestamp).toBeTruthy();
+    expect((rows[0] as any).ts).toEqual(expect.any(Number));
+    expect((rows[0] as any).ts).toBeGreaterThan(0);
   });
 
   it("audit log is append-only (no update/delete exposed)", () => {

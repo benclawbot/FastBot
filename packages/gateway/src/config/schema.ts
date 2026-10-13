@@ -259,7 +259,7 @@ export const claudegramMediaSchema = z.object({
 export const appConfigSchema = z.object({
   server: serverConfigSchema.optional(),
   telegram: telegramConfigSchema.optional(),
-  llm: llmConfigSchema.optional(),
+  llm: llmConfigSchema,
   security: securityConfigSchema.optional(),
   memory: memoryConfigSchema.optional(),
   google: googleConfigSchema,
@@ -277,7 +277,7 @@ export const appConfigSchema = z.object({
 }).transform((val) => ({
   server: serverConfigSchema.parse(val.server ?? {}),
   telegram: telegramConfigSchema.parse(val.telegram ?? {}),
-  llm: llmConfigSchema.parse(val.llm ?? {}),
+  llm: val.llm,
   security: securityConfigSchema.parse(val.security ?? {}),
   memory: memoryConfigSchema.parse(val.memory ?? {}),
   google: val.google,

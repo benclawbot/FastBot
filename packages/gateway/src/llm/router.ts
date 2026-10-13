@@ -384,6 +384,7 @@ export class LlmRouter {
 
     for (const provider of providers) {
       const circuitKey = `${provider.provider}:${provider.model}`;
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
       
       // Check circuit breaker
       if (!this.breaker.isAvailable(circuitKey)) {
@@ -403,19 +404,20 @@ export class LlmRouter {
 
         // Create abort controller for timeout
         const timeoutController = new AbortController();
-        const timeoutId = setTimeout(() => {
+        timeoutId = setTimeout(() => {
           timeoutController.abort(new Error("LLM stream timed out after 30s"));
         }, 30000);
 
         // Merge abort signals
         const combinedSignal = abortSignal
-          ? new AbortSignal([abortSignal, timeoutController.signal])
+          ? AbortSignal.any([abortSignal, timeoutController.signal])
           : timeoutController.signal;
 
         const result = streamText({
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           model: model as any,
           messages,
+          abortSignal: combinedSignal,
           ...(systemPrompt ? { system: systemPrompt } : {}),
         });
 
@@ -468,9 +470,6 @@ export class LlmRouter {
 
         return; // Success - exit the loop
       } catch (err) {
-        // Clear timeout on error
-        clearTimeout(timeoutId);
-        
         this.breaker.recordFailure(circuitKey);
         lastError = err instanceof Error ? err : new Error(String(err));
         log.warn(
@@ -478,6 +477,8 @@ export class LlmRouter {
           "LLM provider failed in stream, trying fallback"
         );
         // Continue to next provider
+      } finally {
+        if (timeoutId !== undefined) clearTimeout(timeoutId);
       }
     }
 
