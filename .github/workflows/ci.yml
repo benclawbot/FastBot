@@ -37,14 +37,11 @@ jobs:
       # Do not install the Python orchestration package in the JS dependency
       # gate: its postinstall provisions a separate Python environment.
       - name: Install JavaScript workspaces
-        run: pnpm install --no-frozen-lockfile --filter './packages/dashboard' --filter './packages/gateway' --filter './packages/playwright'
+        run: pnpm install --frozen-lockfile --filter './packages/dashboard' --filter './packages/gateway' --filter './packages/playwright'
 
       # The repository's `next lint` script currently launches an interactive
       # ESLint setup wizard because no ESLint config is installed. Enforce the
       # existing strict TypeScript configuration non-interactively instead.
-      - name: Show pending lockfile update
-        run: git diff -- pnpm-lock.yaml
-
       - name: Typecheck dashboard
         run: pnpm --filter @fastbot/dashboard exec tsc --noEmit
 
