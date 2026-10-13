@@ -26,6 +26,12 @@ jobs:
           cache: pnpm
       - name: Refresh all dependency resolutions within manifest version ranges
         run: pnpm update --recursive --lockfile-only --ignore-scripts
+      - name: Retain original manifest constraints and re-resolve
+        run: |
+          # pnpm update may rewrite a workspace package.json. Keep the
+          # requested update scoped to compatible lockfile resolutions.
+          git restore -- packages/playwright/package.json
+          pnpm install --lockfile-only --ignore-scripts --no-frozen-lockfile
       - name: Ensure package manifests are unchanged
         run: |
           if git diff --name-only | grep -v '^pnpm-lock.yaml$' | grep -q .; then
