@@ -294,7 +294,6 @@ export class LlmRouter {
 
     for (const provider of providers) {
       const circuitKey = `${provider.provider}:${provider.model}`;
-      let timeoutId: ReturnType<typeof setTimeout> | undefined;
       
       // Check circuit breaker
       if (!this.breaker.isAvailable(circuitKey)) {
@@ -385,6 +384,7 @@ export class LlmRouter {
 
     for (const provider of providers) {
       const circuitKey = `${provider.provider}:${provider.model}`;
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
       
       // Check circuit breaker
       if (!this.breaker.isAvailable(circuitKey)) {
