@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   verify:
-    name: Lint, test and build
+    name: Typecheck, test and build
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -39,8 +39,11 @@ jobs:
       - name: Install JavaScript workspaces
         run: pnpm install --frozen-lockfile --filter './packages/dashboard' --filter './packages/gateway' --filter './packages/playwright'
 
-      - name: Lint dashboard
-        run: pnpm --filter @fastbot/dashboard run lint
+      # The repository's `next lint` script currently launches an interactive
+      # ESLint setup wizard because no ESLint config is installed. Enforce the
+      # existing strict TypeScript configuration non-interactively instead.
+      - name: Typecheck dashboard
+        run: pnpm --filter @fastbot/dashboard exec tsc --noEmit
 
       - name: Test gateway
         run: pnpm --filter @fastbot/gateway run test
