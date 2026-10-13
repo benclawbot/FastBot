@@ -1,0 +1,37 @@
+name: Rebuild lockfile from manifests (maintenance only)
+
+on:
+  push:
+    branches:
+      - maintenance/transitive-dependency-refresh-20261013
+permissions:
+  contents: write
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - name: Resolve fresh lockfile enforcing security overrides
+        run: |
+          rm pnpm-lock.yaml
+          pnpm install --lockfile-only --ignore-scripts --no-frozen-lockfile
+          if git diff --name-only | grep -v '^pnpm-lock.yaml$' | grep -q .; then
+            git diff --name-only
+            exit 1
+          fi
+      - name: Commit regenerated lockfile
+        run: |
+          git add pnpm-lock.yaml
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'chore(lockfile): enforce security patched dependency ranges'
+          git push origin HEAD:maintenance/transitive-dependency-refresh-20261013
