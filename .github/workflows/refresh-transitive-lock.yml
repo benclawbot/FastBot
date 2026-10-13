@@ -30,7 +30,7 @@ jobs:
         run: |
           # pnpm update may rewrite a workspace package.json. Keep the
           # requested update scoped to compatible lockfile resolutions.
-          git restore -- packages/playwright/package.json
+          git restore -- package.json packages/dashboard/package.json packages/gateway/package.json packages/playwright/package.json packages/orchestration/package.json
           pnpm install --lockfile-only --ignore-scripts --no-frozen-lockfile
       - name: Ensure package manifests are unchanged
         run: |
