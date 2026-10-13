@@ -51,6 +51,6 @@
     "@types/jsonwebtoken": "^9.0.10",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.18"
+    "vitest": "^4.1.0"
   }
 }
