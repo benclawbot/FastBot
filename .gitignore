@@ -12,3 +12,13 @@ logs/
 .DS_Store
 Thumbs.db
 config.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Windows
+*:Zone.Identifier
