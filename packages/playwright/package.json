@@ -9,11 +9,11 @@
     "start": "node dist/worker.js"
   },
   "dependencies": {
-    "playwright": "^1.52.0"
+    "playwright": "^1.64.1"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "typescript": "^5.8.0",
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2",
     "tsx": "^4.19.0"
   }
 }
