@@ -131,7 +131,7 @@ export function createHealthRouter(_config: AppConfig, llmRouter?: LlmRouter): R
    * Reset circuit breaker
    * POST /health/reset/:integration?
    */
-  router.post("/reset/:integration?", (req: Request, res: Response) => {
+  router.post("/reset{/:integration}", (req, res) => {
     const { integration } = req.params;
     
     if (integration) {

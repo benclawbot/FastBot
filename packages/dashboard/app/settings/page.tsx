@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, type FormEvent } from "react";
 import { useSocket } from "@/lib/socket";
-import { Bot, Lock, Shield, Trash2, Check, AlertCircle, Link2, Github, Unlink, Zap, Globe, Volume2, Play } from "lucide-react";
+import { Bot, Lock, Shield, Trash2, Check, AlertCircle, Link2, GitBranch, Unlink, Zap, Globe, Volume2, Play } from "lucide-react";
 import { CredentialsModal, useCredentialsCheck } from "@/components/credentials-modal";
 
 interface LlmSettings {
@@ -808,7 +808,7 @@ export default function SettingsPage() {
             {/* GitHub OAuth */}
             <div className="bg-white/5 rounded-xl p-4 flex flex-col items-center justify-between min-h-[200px]">
               <div className="flex flex-col items-center gap-3">
-                <Github size={40} className="text-white" />
+                <GitBranch size={40} className="text-white" aria-hidden="true" />
                 <span className="text-sm text-white/70">GitHub</span>
                 <span className="text-xs text-white/40 text-center">Repositories, Actions, Gists</span>
               </div>
