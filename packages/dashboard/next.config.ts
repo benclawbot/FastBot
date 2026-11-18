@@ -1,8 +1,9 @@
+import { resolve } from "node:path";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  outputFileTracingRoot: "../../",
+  outputFileTracingRoot: resolve(__dirname, "../.."),
   async headers() {
     return [
       {

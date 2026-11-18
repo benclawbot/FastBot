@@ -7,7 +7,6 @@
   "scripts": {
     "dev": "pnpm -r --parallel run dev",
     "build": "pnpm -r run build",
-    "lint": "pnpm -r run lint",
     "doctor": "pnpm --filter @fastbot/gateway run doctor",
     "dashboard": "pnpm --filter @fastbot/dashboard run dev",
     "gateway": "pnpm --filter @fastbot/gateway run dev",
@@ -27,7 +26,6 @@
       "tesseract.js"
     ],
     "overrides": {
-      "zod": "^3.23.8",
       "tar": "^7.4.0",
       "axios": "^1.7.9",
       "xlsx": "^0.18.5",

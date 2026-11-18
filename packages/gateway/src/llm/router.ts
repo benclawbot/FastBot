@@ -7,7 +7,7 @@ import { createCohere } from "@ai-sdk/cohere";
 import { createDeepSeek } from "@ai-sdk/deepseek";
 import { createGroq } from "@ai-sdk/groq";
 import { createMinimax } from "vercel-minimax-ai-provider";
-import { createOllama } from "ollama-ai-provider";
+import { createOllama } from "ollama-ai-provider-v2";
 import { createChildLogger } from "../logger/index.js";
 import { UsageTracker } from "./usage.js";
 import { circuitBreaker, CircuitBreaker } from "../resilience/circuit-breaker.js";
