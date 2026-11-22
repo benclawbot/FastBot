@@ -1,53 +1,68 @@
 /**
- * Characterization tests for the current XLSX extraction contract.
- *
- * These protect observable behavior before replacing the vulnerable
- * SheetJS reader (see #34). Replace the in-test workbook generator with
- * dependency-independent fixtures as part of that migration.
+ * XLSX reader regression tests. The OOXML fixture is encoded as base64 text
+ * so it stays independent from both the old and the new XLSX libraries.
  */
+import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
-import * as XLSX from "xlsx";
 import { extractTextFromDocument, isDocumentSupported } from "./document.js";
 
 const XLSX_MIME =
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
-function workbookBuffer(
-  sheets: Array<{ name: string; rows: Array<Array<string | number>> }>
-): Buffer {
-  const workbook = XLSX.utils.book_new();
-  for (const { name, rows } of sheets) {
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows), name);
-  }
-  return XLSX.write(workbook, { bookType: "xlsx", type: "buffer" }) as Buffer;
+async function workbookBuffer(): Promise<Buffer> {
+  const base64 = await readFile(
+    new URL("./__fixtures__/xlsx-contract.xlsx.base64", import.meta.url),
+    "utf8"
+  );
+  return Buffer.from(base64.trim(), "base64");
 }
 
 describe("document parser XLSX contract", () => {
-  it("preserves sheet order and CSV text while omitting empty sheets", async () => {
-    const buffer = workbookBuffer([
-      { name: "Overview", rows: [["Item", "Count"], ["café", 3], ["Tea", 0]] },
-      { name: "Empty", rows: [] },
-      { name: "Notes", rows: [["Message"], ["Hello"]] },
-    ]);
-
-    const text = await extractTextFromDocument(buffer, XLSX_MIME, "report.XLSX");
-
+  it("preserves order, numeric cells, and Unicode while omitting empty sheets", async () => {
+    const text = await extractTextFromDocument(
+      await workbookBuffer(),
+      XLSX_MIME,
+      "report.XLSX"
+    );
     expect(text).toBe(
       "=== Sheet: Overview ===\n" +
         "Item,Count\ncafé,3\nTea,0\n" +
-        "=== Sheet: Notes ===\nMessage\nHello"
+        '=== Sheet: Notes ===\nMessage\n"Hello, ""world"""'
     );
-    expect(text).not.toContain("=== Sheet: Empty ===");
+    expect(text).not.toContain("=== Sheet: Ignored ===");
   });
 
-  it("quotes commas and embedded double quotes in cell text", async () => {
-    const buffer = workbookBuffer([
-      { name: "Quotes", rows: [["Message"], ['Hello, "world"']] },
-    ]);
-
-    const text = await extractTextFromDocument(buffer, XLSX_MIME, "quotes.xlsx");
-
+  it("escapes commas and double quotes in CSV-formatted text", async () => {
+    const text = await extractTextFromDocument(
+      await workbookBuffer(),
+      XLSX_MIME,
+      "report.xlsx"
+    );
     expect(text).toContain('"Hello, ""world"""');
+  });
+
+  it("rejects invalid ZIP data and oversized uploads before parsing", async () => {
+    await expect(
+      extractTextFromDocument(Buffer.from("not a ZIP archive"), XLSX_MIME, "bad.xlsx")
+    ).rejects.toThrow("XLSX extraction failed: Invalid XLSX ZIP archive");
+
+    await expect(
+      extractTextFromDocument(
+        Buffer.alloc(10 * 1024 * 1024 + 1),
+        XLSX_MIME,
+        "oversized.xlsx"
+      )
+    ).rejects.toThrow("10 MiB input limit");
+  });
+
+  it("rejects impossible ZIP expansion sizes before parsing", async () => {
+    const malformed = Buffer.from(await workbookBuffer());
+    const header = malformed.indexOf(Buffer.from([0x50, 0x4b, 0x01, 0x02]));
+    expect(header).toBeGreaterThan(0);
+    malformed.writeUInt32LE(0xffffffff, header + 24);
+    await expect(
+      extractTextFromDocument(malformed, XLSX_MIME, "bomb.xlsx")
+    ).rejects.toThrow("ZIP entry exceeds safety limits");
   });
 
   it("identifies supported XLSX MIME types case-insensitively", () => {
