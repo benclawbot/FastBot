@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "pnpm -r --parallel run dev",
     "build": "pnpm -r run build",
+    "lint": "node scripts/lint.mjs && pnpm --filter @fastbot/dashboard exec next typegen && pnpm --filter @fastbot/dashboard exec tsc --noEmit && pnpm --filter @fastbot/gateway exec tsc --noEmit && pnpm --filter @fastbot/playwright exec tsc --noEmit",
     "doctor": "pnpm --filter @fastbot/gateway run doctor",
     "dashboard": "pnpm --filter @fastbot/dashboard run dev",
     "gateway": "pnpm --filter @fastbot/gateway run dev",
