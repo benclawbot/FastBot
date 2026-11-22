@@ -662,8 +662,14 @@ pnpm build
 # Run tests
 pnpm --filter @fastbot/gateway test
 
-# Lint
+# Lint and static checks (repository hygiene + all TS workspaces)
 pnpm lint
+
+# Full CI-equivalent local validation (after installing JavaScript workspaces)
+pnpm --filter @fastbot/gateway test
+pnpm --filter @fastbot/gateway build
+pnpm --filter @fastbot/dashboard build
+pnpm --filter @fastbot/playwright build
 ```
 
 ## Troubleshooting

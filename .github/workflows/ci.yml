@@ -39,10 +39,8 @@ jobs:
       - name: Install JavaScript workspaces
         run: pnpm install --frozen-lockfile --filter './packages/dashboard' --filter './packages/gateway' --filter './packages/playwright'
 
-      - name: Typecheck dashboard
-        run: |
-          pnpm --filter @fastbot/dashboard exec next typegen
-          pnpm --filter @fastbot/dashboard exec tsc --noEmit
+      - name: Lint and static type checks
+        run: pnpm lint
 
       - name: Test gateway
         run: pnpm --filter @fastbot/gateway run test
