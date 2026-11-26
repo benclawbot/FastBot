@@ -12,22 +12,22 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^4.0.105",
-    "@ai-sdk/cohere": "^4.0.84",
-    "@ai-sdk/deepseek": "^3.0.87",
-    "@ai-sdk/google": "^4.0.121",
-    "@ai-sdk/groq": "^4.0.84",
-    "@ai-sdk/mistral": "^4.0.87",
-    "@ai-sdk/openai": "^4.0.118",
-    "@anthropic-ai/claude-agent-sdk": "^0.3.325",
+    "@ai-sdk/anthropic": "^4.0.107",
+    "@ai-sdk/cohere": "^4.0.86",
+    "@ai-sdk/deepseek": "^3.0.89",
+    "@ai-sdk/google": "^4.0.124",
+    "@ai-sdk/groq": "^4.0.86",
+    "@ai-sdk/mistral": "^4.0.89",
+    "@ai-sdk/openai": "^4.0.122",
+    "@anthropic-ai/claude-agent-sdk": "^0.3.330",
     "@mozilla/readability": "^0.6.0",
     "@octokit/rest": "^22.0.1",
-    "ai": "^7.0.173",
+    "ai": "^7.0.180",
     "croner": "^11.0.1",
     "dotenv": "18.0.10",
     "express": "^5.3.0",
     "googleapis": "^190.0.0",
-    "grammy": "^1.41.1",
+    "grammy": "^1.48.0",
     "js-yaml": "^5.5.0",
     "jsonwebtoken": "^9.0.3",
     "linkedom": "^0.18.15",
@@ -40,7 +40,7 @@
     "say": "^0.16.0",
     "sharp": "^0.35.5",
     "socket.io": "^4.8.3",
-    "sql.js": "^1.16.0",
+    "sql.js": "^1.17.0",
     "tesseract.js": "^7.0.0",
     "vercel-minimax-ai-provider": "0.0.2",
     "zod": "^4.6.7"
@@ -51,6 +51,6 @@
     "@types/jsonwebtoken": "^9.0.10",
     "tsx": "^4.21.0",
     "typescript": "^7.0.2",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.1"
   }
 }
